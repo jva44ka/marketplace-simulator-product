@@ -17,6 +17,8 @@ import (
 	"github.com/jva44ka/ozon-simulator-go-products/internal/domain/repository"
 	"github.com/jva44ka/ozon-simulator-go-products/internal/domain/service"
 	"github.com/jva44ka/ozon-simulator-go-products/internal/infra/config"
+
+	httpSwagger "github.com/swaggo/http-swagger"
 )
 
 type App struct {
@@ -64,10 +66,16 @@ func NewApp(cfg *config.Config) (*App, error) {
 	reflection.Register(grpcServer)
 
 	httpMux := http.NewServeMux()
+	// grpc gateway
 	httpMux.Handle("/", mux)
-	httpMux.Handle("/swagger/", http.StripPrefix(
-		"/swagger/",
-		http.FileServer(http.Dir("./swagger")),
+	// swagger json
+	httpMux.Handle("/api/", http.StripPrefix(
+		"/api/",
+		http.FileServer(http.Dir("./swagger/api")),
+	))
+	// swagger UI
+	httpMux.Handle("/swagger/", httpSwagger.Handler(
+		httpSwagger.URL("/api/products.swagger.json"),
 	))
 
 	httpServer := &http.Server{
