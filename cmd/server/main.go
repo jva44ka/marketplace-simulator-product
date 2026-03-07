@@ -2,43 +2,26 @@
 package main
 
 import (
-	"context"
-	"fmt"
 	"log"
-	"net"
-	"net/http"
-	"strings"
+	"os"
 
-	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
-	"github.com/jva44ka/ozon-simulator-go-products/internal/app/"
-	desc "github.com/jva44ka/ozon-simulator-go-products/internal/app/gen/ozon-simulator-go-products/api/proto"
-	"github.com/jva44ka/ozon-simulator-go-products/internal/app/middleware"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/reflection"
-)
-
-const (
-	grpcPort = ":50051"
-	httpPort = ":8081"
+	appPkg "github.com/jva44ka/ozon-simulator-go-products/internal/app"
+	"github.com/jva44ka/ozon-simulator-go-products/internal/infra/config"
 )
 
 func main() {
-	ctx := context.Background()
+	configImpl, err := config.LoadConfig(os.Getenv("CONFIG_PATH"))
+	if err != nil {
+		log.Fatal("config.LoadConfig: %w", err)
+	}
 
-	// запускаем gRPC сервер
-	lis, _ := net.Listen("tcp", grpcPort)
-	grpcServer := grpc.NewServer()
-	pb.RegisterProductsServiceServer(grpcServer, server)
+	app, err := appPkg.NewApp(configImpl)
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	go grpcServer.Serve(lis)
-
-	// подключаемся к нему же как клиент
-	conn, _ := grpc.Dial(httpPort, grpc.WithTransportCredentials(insecure.NewCredentials()))
-
-	// HTTP-прокси
-	gwmux := runtime.NewServeMux()
-	pb.RegisterProductsServiceHandler(ctx, gwmux, conn)
-
-	http.ListenAndServe(":8080", gwmux)
+	err = app.Run()
+	if err != nil {
+		log.Fatal(err)
+	}
 }

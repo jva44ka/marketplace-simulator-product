@@ -1,9 +1,10 @@
-http-port: 8081
-grpc-port: 50051
+http-server:
+  host:
+  port: 8081
 
-server:
+grpc-server:
   host: localhost
-  port: 5000
+  port: 50051
 
 database:
   user: postgres

@@ -7,13 +7,15 @@ import (
 )
 
 type Config struct {
-	HTTPPort string `yaml:"http-port"`
-	GRPCPort string `yaml:"grpc-port"`
-
-	Server struct {
+	HttpServer struct {
 		Host string `yaml:"host"`
 		Port string `yaml:"port"`
-	} `yaml:"server"`
+	} `yaml:"http-server"`
+
+	GrpcServer struct {
+		Host string `yaml:"host"`
+		Port string `yaml:"port"`
+	} `yaml:"grpc-server"`
 
 	Products struct {
 		Host   string `yaml:"host"`

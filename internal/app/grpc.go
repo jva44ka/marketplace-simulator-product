@@ -2,36 +2,37 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
-	desc "github.com/jva44ka/ozon-simulator-go-products/internal/app/gen/ozon-simulator-go-products/api/proto"
+	pb "github.com/jva44ka/ozon-simulator-go-products/internal/app/gen/ozon-simulator-go-products/api/proto"
 	"github.com/jva44ka/ozon-simulator-go-products/internal/domain/service"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
-var _ desc.ProductsServer = (*GrpcService)(nil)
+var _ pb.ProductsServer = (*GrpcService)(nil)
 
 type GrpcService struct {
-	desc.UnimplementedProductsServer
+	pb.UnimplementedProductsServer
 	ProductService service.ProductService
 }
 
-func NewGrpcService(productService service.ProductService) *GrpcService {
-	return &GrpcService{ProductService: productService}
+func NewGrpcService(productService *service.ProductService) *GrpcService {
+	return &GrpcService{ProductService: *productService}
 }
 
-func (s *GrpcService) GetProduct(ctx context.Context, request *desc.GetProductRequest) (resp *desc.GetProductResponse, err error) {
+func (s *GrpcService) GetProduct(ctx context.Context, request *pb.GetProductRequest) (resp *pb.GetProductResponse, err error) {
 	if request.Sku < 1 {
-		return &desc.GetProductResponse{}, status.Errorf(codes.InvalidArgument, "sku must be more than zero")
+		return &pb.GetProductResponse{}, status.Errorf(codes.InvalidArgument, "sku must be more than zero")
 	}
 
 	product, err := s.ProductService.GetProductBySku(ctx, request.Sku)
 	if err != nil {
-		return &desc.GetProductResponse{}, fmt.Errorf("error getting product: %w", err)
+		return &pb.GetProductResponse{}, fmt.Errorf("error getting product: %w", err)
 	}
 
-	response := &desc.GetProductResponse{
+	response := &pb.GetProductResponse{
 		Sku:   product.Sku,
 		Name:  product.Name,
 		Price: float32(product.Price),
@@ -39,4 +40,20 @@ func (s *GrpcService) GetProduct(ctx context.Context, request *desc.GetProductRe
 	}
 
 	return response, nil
+}
+
+func (s *GrpcService) IncreaseStock(
+	_ context.Context,
+	_ *pb.IncreaseStockRequest,
+) (*pb.IncreaseStockResponse, error) {
+
+	return nil, errors.New("unimplemented IncreaseStock")
+}
+
+func (s *GrpcService) DecreaseStock(
+	_ context.Context,
+	_ *pb.DecreaseStockRequest,
+) (*pb.DecreaseStockResponse, error) {
+
+	return nil, errors.New("unimplemented DecreaseStock")
 }

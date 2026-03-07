@@ -2,68 +2,29 @@ package app
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"net"
 	"net/http"
 
+	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/jackc/pgx/v5/pgxpool"
 	_ "github.com/jva44ka/ozon-simulator-go-products/docs"
-	httpSwagger "github.com/swaggo/http-swagger"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 
+	pb "github.com/jva44ka/ozon-simulator-go-products/internal/app/gen/ozon-simulator-go-products/api/proto"
 	"github.com/jva44ka/ozon-simulator-go-products/internal/domain/repository"
 	"github.com/jva44ka/ozon-simulator-go-products/internal/domain/service"
 	"github.com/jva44ka/ozon-simulator-go-products/internal/infra/config"
-	"github.com/jva44ka/ozon-simulator-go-products/internal/infra/http/middlewares"
-	"github.com/jva44ka/ozon-simulator-go-products/internal/infra/http/round_trippers"
 )
-
-type App struct {
-	config *config.Config
-	server http.Server
-}
 
 type App struct {
 	grpcServer *grpc.Server
 	httpServer *http.Server
-	db         *sql.DB
 	cfg        *config.Config
 }
 
-func NewApp(configPath string) (*App, error) {
-	configImpl, err := config.LoadConfig(configPath)
-	if err != nil {
-		return nil, fmt.Errorf("config.LoadConfig: %w", err)
-	}
-
-	app := &App{
-		config: configImpl,
-	}
-
-	app.server.Handler, err = boostrapHandler(configImpl)
-	if err != nil {
-		return nil, fmt.Errorf("boostrapHandler: %w", err)
-	}
-
-	return app, nil
-}
-
-func (app *App) ListenAndServe() error {
-	address := fmt.Sprintf("%s:%s", app.config.Server.Host, app.config.Server.Port)
-
-	l, err := net.Listen("tcp", address)
-	if err != nil {
-		return err
-	}
-
-	return app.server.Serve(l)
-}
-
-func boostrapHandler(cfg *config.Config) (http.Handler, error) {
-	tr := http.DefaultTransport
-	tr = round_trippers.NewTimerRoundTipper(tr)
-
+func NewApp(cfg *config.Config) (*App, error) {
 	pool, err := pgxpool.New(context.Background(), fmt.Sprintf(
 		"postgres://%s:%s@%s:%s/%s",
 		cfg.Database.User,
@@ -76,14 +37,51 @@ func boostrapHandler(cfg *config.Config) (http.Handler, error) {
 		return nil, fmt.Errorf("pgxpool.New: %w", err)
 	}
 
-	productRepository := repository.NewPgxRepository(pool)
-	productService := service.NewProductService(productRepository)
+	repo := repository.NewPgxRepository(pool)
+	domainService := service.NewProductService(repo)
 
-	mx := http.NewServeMux()
-	mx.Handle("GET /product/{sku}", get_product_by_sku_handler.NewGetProductsBySkuHandler(productService))
-	mx.Handle("/swagger/", httpSwagger.WrapHandler)
+	grpcServer := grpc.NewServer()
+	grpcService := NewGrpcService(domainService)
 
-	middleware := middlewares.NewTimerMiddleware(mx)
+	pb.RegisterProductsServer(grpcServer, grpcService)
 
-	return middleware, nil
+	ctx := context.Background()
+	mux := runtime.NewServeMux()
+
+	err = pb.RegisterProductsHandlerFromEndpoint(
+		ctx,
+		mux,
+		cfg.GrpcServer.Host+":"+cfg.GrpcServer.Port,
+		[]grpc.DialOption{
+			grpc.WithTransportCredentials(insecure.NewCredentials()),
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	httpServer := &http.Server{
+		Addr:    cfg.HttpServer.Host + ":" + cfg.HttpServer.Port,
+		Handler: mux,
+	}
+
+	return &App{
+		grpcServer: grpcServer,
+		httpServer: httpServer,
+		cfg:        cfg,
+	}, nil
+}
+
+func (a *App) Run() error {
+
+	lis, err := net.Listen("tcp", ":"+a.cfg.GrpcServer.Port)
+	if err != nil {
+		return err
+	}
+
+	go func() {
+		a.grpcServer.Serve(lis)
+	}()
+
+	return a.httpServer.ListenAndServe()
 }
