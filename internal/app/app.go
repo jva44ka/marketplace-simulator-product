@@ -17,7 +17,6 @@ import (
 	"github.com/jva44ka/ozon-simulator-go-products/internal/domain/repository"
 	"github.com/jva44ka/ozon-simulator-go-products/internal/domain/service"
 	"github.com/jva44ka/ozon-simulator-go-products/internal/infra/config"
-
 	httpSwagger "github.com/swaggo/http-swagger"
 )
 
