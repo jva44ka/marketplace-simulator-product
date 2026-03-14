@@ -5,14 +5,13 @@ import (
 	"fmt"
 
 	"github.com/jva44ka/ozon-simulator-go-products/internal/domain/model"
-	"github.com/jva44ka/ozon-simulator-go-products/internal/domain/repository"
 )
 
 type ProductRepository interface {
 	GetProductBySku(ctx context.Context, sku uint64) (*model.Product, error)
 	GetProductsBySkus(ctx context.Context, skus []uint64) ([]*model.Product, error)
-	IncreaseCount(ctx context.Context, stocks []repository.UpdateProductCount) error
-	DecreaseCount(ctx context.Context, stocks []repository.UpdateProductCount) error
+	IncreaseCount(ctx context.Context, stocks []UpdateProductCount) error
+	DecreaseCount(ctx context.Context, stocks []UpdateProductCount) error
 }
 
 type ProductService struct {
@@ -42,15 +41,7 @@ func (s *ProductService) IncreaseStock(ctx context.Context, products []UpdatePro
 		return err
 	}
 
-	repoProducts := make([]repository.UpdateProductCount, len(products))
-	for i, item := range products {
-		repoProducts[i] = repository.UpdateProductCount{
-			Sku:   item.Sku,
-			Delta: item.Delta,
-		}
-	}
-
-	if err := s.productRepository.IncreaseCount(ctx, repoProducts); err != nil {
+	if err := s.productRepository.IncreaseCount(ctx, products); err != nil {
 		return fmt.Errorf("productRepository.IncreaseCount: %w", err)
 	}
 	return nil
@@ -62,22 +53,18 @@ func (s *ProductService) DecreaseStock(ctx context.Context, products []UpdatePro
 		return err
 	}
 
-	repoProducts := make([]repository.UpdateProductCount, len(products))
-	for i, item := range products {
-		repoProducts[i] = repository.UpdateProductCount{
-			Sku:   item.Sku,
-			Delta: item.Delta,
-		}
-	}
-
-	for _, product := range repoProducts {
+	for _, product := range products {
 		existingProduct := existingProducts[product.Sku]
 		if existingProduct.Count < product.Delta {
-			return fmt.Errorf("insufficient product for sku %d: have %d, want %d", product.Sku, existingProduct.Count, product.Delta)
+			return fmt.Errorf(
+				"insufficient product for sku %d: have %d, want %d",
+				product.Sku,
+				existingProduct.Count,
+				product.Delta)
 		}
 	}
 
-	if err = s.productRepository.DecreaseCount(ctx, repoProducts); err != nil {
+	if err = s.productRepository.DecreaseCount(ctx, products); err != nil {
 		return fmt.Errorf("productRepository.DecreaseCount: %w", err)
 	}
 

@@ -7,6 +7,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jva44ka/ozon-simulator-go-products/internal/domain/model"
+	"github.com/jva44ka/ozon-simulator-go-products/internal/domain/service"
 )
 
 type ProductRepository struct {
@@ -67,7 +68,7 @@ WHERE sku = ANY($1);`
 	return products, nil
 }
 
-func (r *ProductRepository) IncreaseCount(ctx context.Context, products []UpdateProductCount) error {
+func (r *ProductRepository) IncreaseCount(ctx context.Context, products []service.UpdateProductCount) error {
 	const query = `
 UPDATE products 
 SET count = count + $2
@@ -100,7 +101,7 @@ WHERE sku = $1;`
 	})
 }
 
-func (r *ProductRepository) DecreaseCount(ctx context.Context, products []UpdateProductCount) error {
+func (r *ProductRepository) DecreaseCount(ctx context.Context, products []service.UpdateProductCount) error {
 	const query = `
 UPDATE products 
 SET count = count - $2
