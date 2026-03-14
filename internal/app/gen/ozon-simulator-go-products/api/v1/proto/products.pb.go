@@ -734,11 +734,11 @@ var file_api_v1_products_proto_depIdxs = []int32{
 	10, // 4: products.DecreaseStockResponse.success:type_name -> products.DecreaseStockResponse.Success
 	11, // 5: products.DecreaseStockResponse.error:type_name -> products.DecreaseStockResponse.Error
 	0,  // 6: products.Products.GetProduct:input_type -> products.GetProductRequest
-	2,  // 7: products.Products.IncreaseStock:input_type -> products.IncreaseStockRequest
-	4,  // 8: products.Products.DecreaseStock:input_type -> products.DecreaseStockRequest
+	2,  // 7: products.Products.IncreaseCount:input_type -> products.IncreaseStockRequest
+	4,  // 8: products.Products.DecreaseCount:input_type -> products.DecreaseStockRequest
 	1,  // 9: products.Products.GetProduct:output_type -> products.GetProductResponse
-	3,  // 10: products.Products.IncreaseStock:output_type -> products.IncreaseStockResponse
-	5,  // 11: products.Products.DecreaseStock:output_type -> products.DecreaseStockResponse
+	3,  // 10: products.Products.IncreaseCount:output_type -> products.IncreaseStockResponse
+	5,  // 11: products.Products.DecreaseCount:output_type -> products.DecreaseStockResponse
 	9,  // [9:12] is the sub-list for method output_type
 	6,  // [6:9] is the sub-list for method input_type
 	6,  // [6:6] is the sub-list for extension type_name

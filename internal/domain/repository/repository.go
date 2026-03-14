@@ -10,12 +10,12 @@ import (
 	"github.com/jva44ka/ozon-simulator-go-products/internal/domain/model"
 )
 
-type PgxRepository struct {
+type ProductRepository struct {
 	pool *pgxpool.Pool
 }
 
-func NewPgxRepository(pool *pgxpool.Pool) *PgxRepository {
-	return &PgxRepository{pool: pool}
+func NewProductRepository(pool *pgxpool.Pool) *ProductRepository {
+	return &ProductRepository{pool: pool}
 }
 
 type ProductRow struct {
@@ -25,11 +25,23 @@ type ProductRow struct {
 	count uint32
 }
 
-func (r *PgxRepository) GetProductBySku(ctx context.Context, sku uint64) (*model.Product, error) {
+type UpdateProductCount struct {
+	Sku   uint64
+	Delta uint32
+}
+
+func (r *ProductRepository) GetProductBySku(ctx context.Context, sku uint64) (*model.Product, error) {
 	const query = `
-SELECT sku, price, name, count 
-FROM products 
-WHERE sku = $1;`
+SELECT 
+    sku, 
+    price, 
+    name, 
+    count, 
+    xmin AS TransactionId
+FROM 
+    products 
+WHERE 
+    sku = $1;`
 
 	row := r.pool.QueryRow(ctx, query, int64(sku))
 
@@ -40,16 +52,79 @@ WHERE sku = $1;`
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, model.ErrProductNotFound
 		}
-		return nil, fmt.Errorf("PgxRepository.GetProductBySku: %w", err)
+		return nil, fmt.Errorf("ProductRepository.GetProductBySku: %w", err)
 	}
 
-	// Преобразуем типы в модель приложения
-	result := &model.Product{
+	return &model.Product{
 		Sku:   uint64(productRow.sku),
 		Price: productRow.price,
 		Name:  productRow.name,
 		Count: productRow.count,
-	}
+	}, nil
+}
 
-	return result, nil
+func (r *ProductRepository) IncreaseCount(ctx context.Context, products []UpdateProductCount) error {
+	const query = `
+UPDATE products 
+SET count = count + $2
+WHERE sku = $1;`
+
+	return pgx.BeginTxFunc(ctx, r.pool, pgx.TxOptions{}, func(tx pgx.Tx) error {
+		batch := &pgx.Batch{}
+		for _, s := range products {
+			batch.Queue(query, int64(s.Sku), s.Delta)
+		}
+
+		results := tx.SendBatch(ctx, batch)
+		defer results.Close()
+
+		var affected int64
+		for range products {
+			tag, err := results.Exec()
+			if err != nil {
+				return fmt.Errorf("PgxRepository.IncreaseCount: %w", err)
+			}
+			affected += tag.RowsAffected()
+		}
+
+		if affected != int64(len(products)) {
+			//TODO: metric
+			return fmt.Errorf("PgxRepository.IncreaseCount: some skus not found")
+		}
+
+		return nil
+	})
+}
+
+func (r *ProductRepository) DecreaseCount(ctx context.Context, products []UpdateProductCount) error {
+	const query = `
+UPDATE products 
+SET count = count - $2
+WHERE sku = $1 AND count >= $2;`
+
+	return pgx.BeginTxFunc(ctx, r.pool, pgx.TxOptions{}, func(tx pgx.Tx) error {
+		batch := &pgx.Batch{}
+		for _, s := range products {
+			batch.Queue(query, int64(s.Sku), s.Delta)
+		}
+
+		results := tx.SendBatch(ctx, batch)
+		defer results.Close()
+
+		var affected int64
+		for range products {
+			tag, err := results.Exec()
+			if err != nil {
+				return fmt.Errorf("PgxRepository.DecreaseCount: %w", err)
+			}
+			affected += tag.RowsAffected()
+		}
+
+		if affected != int64(len(products)) {
+			//TODO: metric
+			return fmt.Errorf("PgxRepository.DecreaseCount: insufficient stock or sku not found")
+		}
+
+		return nil
+	})
 }

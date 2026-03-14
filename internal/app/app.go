@@ -39,7 +39,7 @@ func NewApp(cfg *config.Config) (*App, error) {
 		return nil, fmt.Errorf("pgxpool.New: %w", err)
 	}
 
-	repo := repository.NewPgxRepository(pool)
+	repo := repository.NewProductRepository(pool)
 	domainService := service.NewProductService(repo)
 
 	grpcServer := grpc.NewServer(

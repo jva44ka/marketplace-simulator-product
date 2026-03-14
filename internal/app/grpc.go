@@ -47,7 +47,7 @@ func (s *GrpcService) IncreaseStock(
 	_ *pb.IncreaseStockRequest,
 ) (*pb.IncreaseStockResponse, error) {
 
-	return nil, errors.New("unimplemented IncreaseStock")
+	return nil, errors.New("unimplemented IncreaseCount")
 }
 
 func (s *GrpcService) DecreaseStock(
@@ -55,5 +55,5 @@ func (s *GrpcService) DecreaseStock(
 	_ *pb.DecreaseStockRequest,
 ) (*pb.DecreaseStockResponse, error) {
 
-	return nil, errors.New("unimplemented DecreaseStock")
+	return nil, errors.New("unimplemented DecreaseCount")
 }

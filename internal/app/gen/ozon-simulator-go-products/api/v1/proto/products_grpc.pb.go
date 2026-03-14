@@ -20,8 +20,8 @@ const _ = grpc.SupportPackageIsVersion9
 
 const (
 	Products_GetProduct_FullMethodName    = "/products.Products/GetProduct"
-	Products_IncreaseStock_FullMethodName = "/products.Products/IncreaseStock"
-	Products_DecreaseStock_FullMethodName = "/products.Products/DecreaseStock"
+	Products_IncreaseStock_FullMethodName = "/products.Products/IncreaseCount"
+	Products_DecreaseStock_FullMethodName = "/products.Products/DecreaseCount"
 )
 
 // ProductsClient is the client API for Products service.
@@ -92,10 +92,10 @@ func (UnimplementedProductsServer) GetProduct(context.Context, *GetProductReques
 	return nil, status.Error(codes.Unimplemented, "method GetProduct not implemented")
 }
 func (UnimplementedProductsServer) IncreaseStock(context.Context, *IncreaseStockRequest) (*IncreaseStockResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method IncreaseStock not implemented")
+	return nil, status.Error(codes.Unimplemented, "method IncreaseCount not implemented")
 }
 func (UnimplementedProductsServer) DecreaseStock(context.Context, *DecreaseStockRequest) (*DecreaseStockResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method DecreaseStock not implemented")
+	return nil, status.Error(codes.Unimplemented, "method DecreaseCount not implemented")
 }
 func (UnimplementedProductsServer) mustEmbedUnimplementedProductsServer() {}
 func (UnimplementedProductsServer) testEmbeddedByValue()                  {}
@@ -184,11 +184,11 @@ var Products_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _Products_GetProduct_Handler,
 		},
 		{
-			MethodName: "IncreaseStock",
+			MethodName: "IncreaseCount",
 			Handler:    _Products_IncreaseStock_Handler,
 		},
 		{
-			MethodName: "DecreaseStock",
+			MethodName: "DecreaseCount",
 			Handler:    _Products_DecreaseStock_Handler,
 		},
 	},
