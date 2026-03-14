@@ -180,12 +180,7 @@ func (x *IncreaseStockRequest) GetStocks() []*IncreaseStockRequest_IncreaseStock
 }
 
 type IncreaseStockResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Types that are valid to be assigned to Result:
-	//
-	//	*IncreaseStockResponse_Success_
-	//	*IncreaseStockResponse_Error_
-	Result        isIncreaseStockResponse_Result `protobuf_oneof:"result"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -219,47 +214,6 @@ func (x *IncreaseStockResponse) ProtoReflect() protoreflect.Message {
 func (*IncreaseStockResponse) Descriptor() ([]byte, []int) {
 	return file_api_v1_products_proto_rawDescGZIP(), []int{3}
 }
-
-func (x *IncreaseStockResponse) GetResult() isIncreaseStockResponse_Result {
-	if x != nil {
-		return x.Result
-	}
-	return nil
-}
-
-func (x *IncreaseStockResponse) GetSuccess() *IncreaseStockResponse_Success {
-	if x != nil {
-		if x, ok := x.Result.(*IncreaseStockResponse_Success_); ok {
-			return x.Success
-		}
-	}
-	return nil
-}
-
-func (x *IncreaseStockResponse) GetError() *IncreaseStockResponse_Error {
-	if x != nil {
-		if x, ok := x.Result.(*IncreaseStockResponse_Error_); ok {
-			return x.Error
-		}
-	}
-	return nil
-}
-
-type isIncreaseStockResponse_Result interface {
-	isIncreaseStockResponse_Result()
-}
-
-type IncreaseStockResponse_Success_ struct {
-	Success *IncreaseStockResponse_Success `protobuf:"bytes,1,opt,name=success,proto3,oneof"`
-}
-
-type IncreaseStockResponse_Error_ struct {
-	Error *IncreaseStockResponse_Error `protobuf:"bytes,2,opt,name=error,proto3,oneof"`
-}
-
-func (*IncreaseStockResponse_Success_) isIncreaseStockResponse_Result() {}
-
-func (*IncreaseStockResponse_Error_) isIncreaseStockResponse_Result() {}
 
 type DecreaseStockRequest struct {
 	state         protoimpl.MessageState                     `protogen:"open.v1"`
@@ -306,12 +260,7 @@ func (x *DecreaseStockRequest) GetStocks() []*DecreaseStockRequest_IncreaseStock
 }
 
 type DecreaseStockResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Types that are valid to be assigned to Result:
-	//
-	//	*DecreaseStockResponse_Success_
-	//	*DecreaseStockResponse_Error_
-	Result        isDecreaseStockResponse_Result `protobuf_oneof:"result"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -345,47 +294,6 @@ func (x *DecreaseStockResponse) ProtoReflect() protoreflect.Message {
 func (*DecreaseStockResponse) Descriptor() ([]byte, []int) {
 	return file_api_v1_products_proto_rawDescGZIP(), []int{5}
 }
-
-func (x *DecreaseStockResponse) GetResult() isDecreaseStockResponse_Result {
-	if x != nil {
-		return x.Result
-	}
-	return nil
-}
-
-func (x *DecreaseStockResponse) GetSuccess() *DecreaseStockResponse_Success {
-	if x != nil {
-		if x, ok := x.Result.(*DecreaseStockResponse_Success_); ok {
-			return x.Success
-		}
-	}
-	return nil
-}
-
-func (x *DecreaseStockResponse) GetError() *DecreaseStockResponse_Error {
-	if x != nil {
-		if x, ok := x.Result.(*DecreaseStockResponse_Error_); ok {
-			return x.Error
-		}
-	}
-	return nil
-}
-
-type isDecreaseStockResponse_Result interface {
-	isDecreaseStockResponse_Result()
-}
-
-type DecreaseStockResponse_Success_ struct {
-	Success *DecreaseStockResponse_Success `protobuf:"bytes,1,opt,name=success,proto3,oneof"`
-}
-
-type DecreaseStockResponse_Error_ struct {
-	Error *DecreaseStockResponse_Error `protobuf:"bytes,2,opt,name=error,proto3,oneof"`
-}
-
-func (*DecreaseStockResponse_Success_) isDecreaseStockResponse_Result() {}
-
-func (*DecreaseStockResponse_Error_) isDecreaseStockResponse_Result() {}
 
 type IncreaseStockRequest_IncreaseStockBatch struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -439,86 +347,6 @@ func (x *IncreaseStockRequest_IncreaseStockBatch) GetCount() uint32 {
 	return 0
 }
 
-type IncreaseStockResponse_Success struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *IncreaseStockResponse_Success) Reset() {
-	*x = IncreaseStockResponse_Success{}
-	mi := &file_api_v1_products_proto_msgTypes[7]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *IncreaseStockResponse_Success) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*IncreaseStockResponse_Success) ProtoMessage() {}
-
-func (x *IncreaseStockResponse_Success) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_products_proto_msgTypes[7]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use IncreaseStockResponse_Success.ProtoReflect.Descriptor instead.
-func (*IncreaseStockResponse_Success) Descriptor() ([]byte, []int) {
-	return file_api_v1_products_proto_rawDescGZIP(), []int{3, 0}
-}
-
-type IncreaseStockResponse_Error struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Message       string                 `protobuf:"bytes,1,opt,name=message,proto3" json:"message,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *IncreaseStockResponse_Error) Reset() {
-	*x = IncreaseStockResponse_Error{}
-	mi := &file_api_v1_products_proto_msgTypes[8]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *IncreaseStockResponse_Error) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*IncreaseStockResponse_Error) ProtoMessage() {}
-
-func (x *IncreaseStockResponse_Error) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_products_proto_msgTypes[8]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use IncreaseStockResponse_Error.ProtoReflect.Descriptor instead.
-func (*IncreaseStockResponse_Error) Descriptor() ([]byte, []int) {
-	return file_api_v1_products_proto_rawDescGZIP(), []int{3, 1}
-}
-
-func (x *IncreaseStockResponse_Error) GetMessage() string {
-	if x != nil {
-		return x.Message
-	}
-	return ""
-}
-
 type DecreaseStockRequest_IncreaseStockBatch struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Sku           uint64                 `protobuf:"varint,1,opt,name=sku,proto3" json:"sku,omitempty"`
@@ -529,7 +357,7 @@ type DecreaseStockRequest_IncreaseStockBatch struct {
 
 func (x *DecreaseStockRequest_IncreaseStockBatch) Reset() {
 	*x = DecreaseStockRequest_IncreaseStockBatch{}
-	mi := &file_api_v1_products_proto_msgTypes[9]
+	mi := &file_api_v1_products_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -541,7 +369,7 @@ func (x *DecreaseStockRequest_IncreaseStockBatch) String() string {
 func (*DecreaseStockRequest_IncreaseStockBatch) ProtoMessage() {}
 
 func (x *DecreaseStockRequest_IncreaseStockBatch) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_products_proto_msgTypes[9]
+	mi := &file_api_v1_products_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -571,86 +399,6 @@ func (x *DecreaseStockRequest_IncreaseStockBatch) GetCount() uint32 {
 	return 0
 }
 
-type DecreaseStockResponse_Success struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *DecreaseStockResponse_Success) Reset() {
-	*x = DecreaseStockResponse_Success{}
-	mi := &file_api_v1_products_proto_msgTypes[10]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *DecreaseStockResponse_Success) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*DecreaseStockResponse_Success) ProtoMessage() {}
-
-func (x *DecreaseStockResponse_Success) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_products_proto_msgTypes[10]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use DecreaseStockResponse_Success.ProtoReflect.Descriptor instead.
-func (*DecreaseStockResponse_Success) Descriptor() ([]byte, []int) {
-	return file_api_v1_products_proto_rawDescGZIP(), []int{5, 0}
-}
-
-type DecreaseStockResponse_Error struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Message       string                 `protobuf:"bytes,1,opt,name=message,proto3" json:"message,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *DecreaseStockResponse_Error) Reset() {
-	*x = DecreaseStockResponse_Error{}
-	mi := &file_api_v1_products_proto_msgTypes[11]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *DecreaseStockResponse_Error) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*DecreaseStockResponse_Error) ProtoMessage() {}
-
-func (x *DecreaseStockResponse_Error) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_products_proto_msgTypes[11]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use DecreaseStockResponse_Error.ProtoReflect.Descriptor instead.
-func (*DecreaseStockResponse_Error) Descriptor() ([]byte, []int) {
-	return file_api_v1_products_proto_rawDescGZIP(), []int{5, 1}
-}
-
-func (x *DecreaseStockResponse_Error) GetMessage() string {
-	if x != nil {
-		return x.Message
-	}
-	return ""
-}
-
 var File_api_v1_products_proto protoreflect.FileDescriptor
 
 const file_api_v1_products_proto_rawDesc = "" +
@@ -667,26 +415,14 @@ const file_api_v1_products_proto_rawDesc = "" +
 	"\x06stocks\x18\x01 \x03(\v21.products.IncreaseStockRequest.IncreaseStockBatchR\x06stocks\x1a<\n" +
 	"\x12IncreaseStockBatch\x12\x10\n" +
 	"\x03sku\x18\x01 \x01(\x04R\x03sku\x12\x14\n" +
-	"\x05count\x18\x02 \x01(\rR\x05count\"\xd3\x01\n" +
-	"\x15IncreaseStockResponse\x12C\n" +
-	"\asuccess\x18\x01 \x01(\v2'.products.IncreaseStockResponse.SuccessH\x00R\asuccess\x12=\n" +
-	"\x05error\x18\x02 \x01(\v2%.products.IncreaseStockResponse.ErrorH\x00R\x05error\x1a\t\n" +
-	"\aSuccess\x1a!\n" +
-	"\x05Error\x12\x18\n" +
-	"\amessage\x18\x01 \x01(\tR\amessageB\b\n" +
-	"\x06result\"\x9f\x01\n" +
+	"\x05count\x18\x02 \x01(\rR\x05count\"\x17\n" +
+	"\x15IncreaseStockResponse\"\x9f\x01\n" +
 	"\x14DecreaseStockRequest\x12I\n" +
 	"\x06stocks\x18\x01 \x03(\v21.products.DecreaseStockRequest.IncreaseStockBatchR\x06stocks\x1a<\n" +
 	"\x12IncreaseStockBatch\x12\x10\n" +
 	"\x03sku\x18\x01 \x01(\x04R\x03sku\x12\x14\n" +
-	"\x05count\x18\x02 \x01(\rR\x05count\"\xd3\x01\n" +
-	"\x15DecreaseStockResponse\x12C\n" +
-	"\asuccess\x18\x01 \x01(\v2'.products.DecreaseStockResponse.SuccessH\x00R\asuccess\x12=\n" +
-	"\x05error\x18\x02 \x01(\v2%.products.DecreaseStockResponse.ErrorH\x00R\x05error\x1a\t\n" +
-	"\aSuccess\x1a!\n" +
-	"\x05Error\x12\x18\n" +
-	"\amessage\x18\x01 \x01(\tR\amessageB\b\n" +
-	"\x06result2\xa4\x03\n" +
+	"\x05count\x18\x02 \x01(\rR\x05count\"\x17\n" +
+	"\x15DecreaseStockResponse2\xa4\x03\n" +
 	"\bProducts\x12\xa3\x01\n" +
 	"\n" +
 	"GetProduct\x12\x1b.products.GetProductRequest\x1a\x1c.products.GetProductResponse\"Z\x92A=\x1a;Получение информации о продукте\x82\xd3\xe4\x93\x02\x14\x12\x12/v1/products/{sku}\x12x\n" +
@@ -711,7 +447,7 @@ func file_api_v1_products_proto_rawDescGZIP() []byte {
 	return file_api_v1_products_proto_rawDescData
 }
 
-var file_api_v1_products_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
+var file_api_v1_products_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_api_v1_products_proto_goTypes = []any{
 	(*GetProductRequest)(nil),                       // 0: products.GetProductRequest
 	(*GetProductResponse)(nil),                      // 1: products.GetProductResponse
@@ -720,30 +456,22 @@ var file_api_v1_products_proto_goTypes = []any{
 	(*DecreaseStockRequest)(nil),                    // 4: products.DecreaseStockRequest
 	(*DecreaseStockResponse)(nil),                   // 5: products.DecreaseStockResponse
 	(*IncreaseStockRequest_IncreaseStockBatch)(nil), // 6: products.IncreaseStockRequest.IncreaseStockBatch
-	(*IncreaseStockResponse_Success)(nil),           // 7: products.IncreaseStockResponse.Success
-	(*IncreaseStockResponse_Error)(nil),             // 8: products.IncreaseStockResponse.Error
-	(*DecreaseStockRequest_IncreaseStockBatch)(nil), // 9: products.DecreaseStockRequest.IncreaseStockBatch
-	(*DecreaseStockResponse_Success)(nil),           // 10: products.DecreaseStockResponse.Success
-	(*DecreaseStockResponse_Error)(nil),             // 11: products.DecreaseStockResponse.Error
+	(*DecreaseStockRequest_IncreaseStockBatch)(nil), // 7: products.DecreaseStockRequest.IncreaseStockBatch
 }
 var file_api_v1_products_proto_depIdxs = []int32{
-	6,  // 0: products.IncreaseStockRequest.stocks:type_name -> products.IncreaseStockRequest.IncreaseStockBatch
-	7,  // 1: products.IncreaseStockResponse.success:type_name -> products.IncreaseStockResponse.Success
-	8,  // 2: products.IncreaseStockResponse.error:type_name -> products.IncreaseStockResponse.Error
-	9,  // 3: products.DecreaseStockRequest.stocks:type_name -> products.DecreaseStockRequest.IncreaseStockBatch
-	10, // 4: products.DecreaseStockResponse.success:type_name -> products.DecreaseStockResponse.Success
-	11, // 5: products.DecreaseStockResponse.error:type_name -> products.DecreaseStockResponse.Error
-	0,  // 6: products.Products.GetProduct:input_type -> products.GetProductRequest
-	2,  // 7: products.Products.IncreaseCount:input_type -> products.IncreaseStockRequest
-	4,  // 8: products.Products.DecreaseCount:input_type -> products.DecreaseStockRequest
-	1,  // 9: products.Products.GetProduct:output_type -> products.GetProductResponse
-	3,  // 10: products.Products.IncreaseCount:output_type -> products.IncreaseStockResponse
-	5,  // 11: products.Products.DecreaseCount:output_type -> products.DecreaseStockResponse
-	9,  // [9:12] is the sub-list for method output_type
-	6,  // [6:9] is the sub-list for method input_type
-	6,  // [6:6] is the sub-list for extension type_name
-	6,  // [6:6] is the sub-list for extension extendee
-	0,  // [0:6] is the sub-list for field type_name
+	6, // 0: products.IncreaseStockRequest.stocks:type_name -> products.IncreaseStockRequest.IncreaseStockBatch
+	7, // 1: products.DecreaseStockRequest.stocks:type_name -> products.DecreaseStockRequest.IncreaseStockBatch
+	0, // 2: products.Products.GetProduct:input_type -> products.GetProductRequest
+	2, // 3: products.Products.IncreaseStock:input_type -> products.IncreaseStockRequest
+	4, // 4: products.Products.DecreaseStock:input_type -> products.DecreaseStockRequest
+	1, // 5: products.Products.GetProduct:output_type -> products.GetProductResponse
+	3, // 6: products.Products.IncreaseStock:output_type -> products.IncreaseStockResponse
+	5, // 7: products.Products.DecreaseStock:output_type -> products.DecreaseStockResponse
+	5, // [5:8] is the sub-list for method output_type
+	2, // [2:5] is the sub-list for method input_type
+	2, // [2:2] is the sub-list for extension type_name
+	2, // [2:2] is the sub-list for extension extendee
+	0, // [0:2] is the sub-list for field type_name
 }
 
 func init() { file_api_v1_products_proto_init() }
@@ -751,21 +479,13 @@ func file_api_v1_products_proto_init() {
 	if File_api_v1_products_proto != nil {
 		return
 	}
-	file_api_v1_products_proto_msgTypes[3].OneofWrappers = []any{
-		(*IncreaseStockResponse_Success_)(nil),
-		(*IncreaseStockResponse_Error_)(nil),
-	}
-	file_api_v1_products_proto_msgTypes[5].OneofWrappers = []any{
-		(*DecreaseStockResponse_Success_)(nil),
-		(*DecreaseStockResponse_Error_)(nil),
-	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_api_v1_products_proto_rawDesc), len(file_api_v1_products_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   12,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

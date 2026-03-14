@@ -80,18 +80,7 @@ message IncreaseStockRequest {
   }
 }
 
-message IncreaseStockResponse {
-  oneof result {
-    Success success = 1;
-    Error error = 2;
-  }
-
-  message Success {}
-
-  message Error {
-    string message = 1;
-  }
-}
+message IncreaseStockResponse {}
 
 message DecreaseStockRequest {
   repeated IncreaseStockBatch stocks = 1;
@@ -102,15 +91,4 @@ message DecreaseStockRequest {
   }
 }
 
-message DecreaseStockResponse {
-  oneof result {
-    Success success = 1;
-    Error error = 2;
-  }
-
-  message Success {}
-
-  message Error {
-    string message = 1;
-  }
-}
+message DecreaseStockResponse {}

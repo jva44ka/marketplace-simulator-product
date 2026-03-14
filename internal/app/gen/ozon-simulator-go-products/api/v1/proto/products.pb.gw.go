@@ -160,7 +160,7 @@ func RegisterProductsHandlerServer(ctx context.Context, mux *runtime.ServeMux, s
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/products.Products/IncreaseCount", runtime.WithHTTPPathPattern("/v1/products/increase-stock"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/products.Products/IncreaseStock", runtime.WithHTTPPathPattern("/v1/products/increase-stock"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -180,7 +180,7 @@ func RegisterProductsHandlerServer(ctx context.Context, mux *runtime.ServeMux, s
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/products.Products/DecreaseCount", runtime.WithHTTPPathPattern("/v1/products/decrease-stock"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/products.Products/DecreaseStock", runtime.WithHTTPPathPattern("/v1/products/decrease-stock"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -255,7 +255,7 @@ func RegisterProductsHandlerClient(ctx context.Context, mux *runtime.ServeMux, c
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/products.Products/IncreaseCount", runtime.WithHTTPPathPattern("/v1/products/increase-stock"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/products.Products/IncreaseStock", runtime.WithHTTPPathPattern("/v1/products/increase-stock"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -272,7 +272,7 @@ func RegisterProductsHandlerClient(ctx context.Context, mux *runtime.ServeMux, c
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/products.Products/DecreaseCount", runtime.WithHTTPPathPattern("/v1/products/decrease-stock"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/products.Products/DecreaseStock", runtime.WithHTTPPathPattern("/v1/products/decrease-stock"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
