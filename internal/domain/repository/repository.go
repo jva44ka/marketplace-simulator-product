@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
@@ -31,36 +30,41 @@ type UpdateProductCount struct {
 }
 
 func (r *ProductRepository) GetProductBySku(ctx context.Context, sku uint64) (*model.Product, error) {
-	const query = `
-SELECT 
-    sku, 
-    price, 
-    name, 
-    count, 
-    xmin AS TransactionId
-FROM 
-    products 
-WHERE 
-    sku = $1;`
-
-	row := r.pool.QueryRow(ctx, query, int64(sku))
-
-	var productRow = ProductRow{}
-
-	err := row.Scan(&productRow.sku, &productRow.price, &productRow.name, &productRow.count)
+	products, err := r.GetProductsBySkus(ctx, []uint64{sku})
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, model.ErrProductNotFound
-		}
-		return nil, fmt.Errorf("ProductRepository.GetProductBySku: %w", err)
+		return nil, err
 	}
 
-	return &model.Product{
-		Sku:   uint64(productRow.sku),
-		Price: productRow.price,
-		Name:  productRow.name,
-		Count: productRow.count,
-	}, nil
+	return products[0], nil
+}
+
+func (r *ProductRepository) GetProductsBySkus(ctx context.Context, skus []uint64) ([]*model.Product, error) {
+	const query = `
+SELECT sku, price, name, count
+FROM products
+WHERE sku = ANY($1);`
+
+	rows, err := r.pool.Query(ctx, query, skus)
+	if err != nil {
+		return nil, fmt.Errorf("PgxRepository.GetProductsBySkus: %w", err)
+	}
+	defer rows.Close()
+
+	products := make([]*model.Product, 0, len(skus))
+	for rows.Next() {
+		var row ProductRow
+		if err := rows.Scan(&row.sku, &row.price, &row.name, &row.count); err != nil {
+			return nil, fmt.Errorf("PgxRepository.GetProductsBySkus: %w", err)
+		}
+		products = append(products, &model.Product{
+			Sku:   uint64(row.sku),
+			Price: row.price,
+			Name:  row.name,
+			Count: row.count,
+		})
+	}
+
+	return products, nil
 }
 
 func (r *ProductRepository) IncreaseCount(ctx context.Context, products []UpdateProductCount) error {
