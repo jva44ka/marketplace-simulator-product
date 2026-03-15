@@ -44,7 +44,7 @@ func (s *ProductService) IncreaseCount(ctx context.Context, products []UpdatePro
 	}
 
 	for _, product := range products {
-		existingProductsMap[product.Sku].Count = +product.Delta
+		existingProductsMap[product.Sku].Count += product.Delta
 	}
 
 	existingProductsSlice := slices.Collect(maps.Values(existingProductsMap))
@@ -71,7 +71,7 @@ func (s *ProductService) DecreaseCount(ctx context.Context, products []UpdatePro
 				product.Delta)
 		}
 
-		existingProduct.Count = -product.Delta
+		existingProduct.Count -= product.Delta
 	}
 
 	for _, product := range products {
