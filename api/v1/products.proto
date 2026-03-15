@@ -72,9 +72,9 @@ message GetProductResponse {
 }
 
 message IncreaseProductCountRequest {
-  repeated IncreaseStockBatch products = 1;
+  repeated IncreaseProductCountBatch products = 1;
 
-  message IncreaseStockBatch {
+  message IncreaseProductCountBatch {
     uint64 sku = 1;
     uint32 count = 2;
   }
@@ -83,9 +83,9 @@ message IncreaseProductCountRequest {
 message IncreaseProductCountResponse {}
 
 message DecreaseProductCountRequest {
-  repeated IncreaseStockBatch products = 1;
+  repeated IncreaseProductCountBatch products = 1;
 
-  message IncreaseStockBatch {
+  message IncreaseProductCountBatch {
     uint64 sku = 1;
     uint32 count = 2;
   }

@@ -136,8 +136,8 @@ func (x *GetProductResponse) GetPrice() float64 {
 }
 
 type IncreaseProductCountRequest struct {
-	state         protoimpl.MessageState                            `protogen:"open.v1"`
-	Products      []*IncreaseProductCountRequest_IncreaseStockBatch `protobuf:"bytes,1,rep,name=products,proto3" json:"products,omitempty"`
+	state         protoimpl.MessageState                                   `protogen:"open.v1"`
+	Products      []*IncreaseProductCountRequest_IncreaseProductCountBatch `protobuf:"bytes,1,rep,name=products,proto3" json:"products,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -172,7 +172,7 @@ func (*IncreaseProductCountRequest) Descriptor() ([]byte, []int) {
 	return file_api_v1_products_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *IncreaseProductCountRequest) GetProducts() []*IncreaseProductCountRequest_IncreaseStockBatch {
+func (x *IncreaseProductCountRequest) GetProducts() []*IncreaseProductCountRequest_IncreaseProductCountBatch {
 	if x != nil {
 		return x.Products
 	}
@@ -216,8 +216,8 @@ func (*IncreaseProductCountResponse) Descriptor() ([]byte, []int) {
 }
 
 type DecreaseProductCountRequest struct {
-	state         protoimpl.MessageState                            `protogen:"open.v1"`
-	Products      []*DecreaseProductCountRequest_IncreaseStockBatch `protobuf:"bytes,1,rep,name=products,proto3" json:"products,omitempty"`
+	state         protoimpl.MessageState                                   `protogen:"open.v1"`
+	Products      []*DecreaseProductCountRequest_IncreaseProductCountBatch `protobuf:"bytes,1,rep,name=products,proto3" json:"products,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -252,7 +252,7 @@ func (*DecreaseProductCountRequest) Descriptor() ([]byte, []int) {
 	return file_api_v1_products_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *DecreaseProductCountRequest) GetProducts() []*DecreaseProductCountRequest_IncreaseStockBatch {
+func (x *DecreaseProductCountRequest) GetProducts() []*DecreaseProductCountRequest_IncreaseProductCountBatch {
 	if x != nil {
 		return x.Products
 	}
@@ -295,7 +295,7 @@ func (*DecreaseProductCountResponse) Descriptor() ([]byte, []int) {
 	return file_api_v1_products_proto_rawDescGZIP(), []int{5}
 }
 
-type IncreaseProductCountRequest_IncreaseStockBatch struct {
+type IncreaseProductCountRequest_IncreaseProductCountBatch struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Sku           uint64                 `protobuf:"varint,1,opt,name=sku,proto3" json:"sku,omitempty"`
 	Count         uint32                 `protobuf:"varint,2,opt,name=count,proto3" json:"count,omitempty"`
@@ -303,20 +303,20 @@ type IncreaseProductCountRequest_IncreaseStockBatch struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *IncreaseProductCountRequest_IncreaseStockBatch) Reset() {
-	*x = IncreaseProductCountRequest_IncreaseStockBatch{}
+func (x *IncreaseProductCountRequest_IncreaseProductCountBatch) Reset() {
+	*x = IncreaseProductCountRequest_IncreaseProductCountBatch{}
 	mi := &file_api_v1_products_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *IncreaseProductCountRequest_IncreaseStockBatch) String() string {
+func (x *IncreaseProductCountRequest_IncreaseProductCountBatch) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*IncreaseProductCountRequest_IncreaseStockBatch) ProtoMessage() {}
+func (*IncreaseProductCountRequest_IncreaseProductCountBatch) ProtoMessage() {}
 
-func (x *IncreaseProductCountRequest_IncreaseStockBatch) ProtoReflect() protoreflect.Message {
+func (x *IncreaseProductCountRequest_IncreaseProductCountBatch) ProtoReflect() protoreflect.Message {
 	mi := &file_api_v1_products_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -328,26 +328,26 @@ func (x *IncreaseProductCountRequest_IncreaseStockBatch) ProtoReflect() protoref
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use IncreaseProductCountRequest_IncreaseStockBatch.ProtoReflect.Descriptor instead.
-func (*IncreaseProductCountRequest_IncreaseStockBatch) Descriptor() ([]byte, []int) {
+// Deprecated: Use IncreaseProductCountRequest_IncreaseProductCountBatch.ProtoReflect.Descriptor instead.
+func (*IncreaseProductCountRequest_IncreaseProductCountBatch) Descriptor() ([]byte, []int) {
 	return file_api_v1_products_proto_rawDescGZIP(), []int{2, 0}
 }
 
-func (x *IncreaseProductCountRequest_IncreaseStockBatch) GetSku() uint64 {
+func (x *IncreaseProductCountRequest_IncreaseProductCountBatch) GetSku() uint64 {
 	if x != nil {
 		return x.Sku
 	}
 	return 0
 }
 
-func (x *IncreaseProductCountRequest_IncreaseStockBatch) GetCount() uint32 {
+func (x *IncreaseProductCountRequest_IncreaseProductCountBatch) GetCount() uint32 {
 	if x != nil {
 		return x.Count
 	}
 	return 0
 }
 
-type DecreaseProductCountRequest_IncreaseStockBatch struct {
+type DecreaseProductCountRequest_IncreaseProductCountBatch struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Sku           uint64                 `protobuf:"varint,1,opt,name=sku,proto3" json:"sku,omitempty"`
 	Count         uint32                 `protobuf:"varint,2,opt,name=count,proto3" json:"count,omitempty"`
@@ -355,20 +355,20 @@ type DecreaseProductCountRequest_IncreaseStockBatch struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *DecreaseProductCountRequest_IncreaseStockBatch) Reset() {
-	*x = DecreaseProductCountRequest_IncreaseStockBatch{}
+func (x *DecreaseProductCountRequest_IncreaseProductCountBatch) Reset() {
+	*x = DecreaseProductCountRequest_IncreaseProductCountBatch{}
 	mi := &file_api_v1_products_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *DecreaseProductCountRequest_IncreaseStockBatch) String() string {
+func (x *DecreaseProductCountRequest_IncreaseProductCountBatch) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*DecreaseProductCountRequest_IncreaseStockBatch) ProtoMessage() {}
+func (*DecreaseProductCountRequest_IncreaseProductCountBatch) ProtoMessage() {}
 
-func (x *DecreaseProductCountRequest_IncreaseStockBatch) ProtoReflect() protoreflect.Message {
+func (x *DecreaseProductCountRequest_IncreaseProductCountBatch) ProtoReflect() protoreflect.Message {
 	mi := &file_api_v1_products_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -380,19 +380,19 @@ func (x *DecreaseProductCountRequest_IncreaseStockBatch) ProtoReflect() protoref
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use DecreaseProductCountRequest_IncreaseStockBatch.ProtoReflect.Descriptor instead.
-func (*DecreaseProductCountRequest_IncreaseStockBatch) Descriptor() ([]byte, []int) {
+// Deprecated: Use DecreaseProductCountRequest_IncreaseProductCountBatch.ProtoReflect.Descriptor instead.
+func (*DecreaseProductCountRequest_IncreaseProductCountBatch) Descriptor() ([]byte, []int) {
 	return file_api_v1_products_proto_rawDescGZIP(), []int{4, 0}
 }
 
-func (x *DecreaseProductCountRequest_IncreaseStockBatch) GetSku() uint64 {
+func (x *DecreaseProductCountRequest_IncreaseProductCountBatch) GetSku() uint64 {
 	if x != nil {
 		return x.Sku
 	}
 	return 0
 }
 
-func (x *DecreaseProductCountRequest_IncreaseStockBatch) GetCount() uint32 {
+func (x *DecreaseProductCountRequest_IncreaseProductCountBatch) GetCount() uint32 {
 	if x != nil {
 		return x.Count
 	}
@@ -410,16 +410,16 @@ const file_api_v1_products_proto_rawDesc = "" +
 	"\x03sku\x18\x01 \x01(\x04R\x03sku\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x14\n" +
 	"\x05count\x18\x03 \x01(\rR\x05count\x12\x14\n" +
-	"\x05price\x18\x04 \x01(\x01R\x05price\"\xb1\x01\n" +
-	"\x1bIncreaseProductCountRequest\x12T\n" +
-	"\bproducts\x18\x01 \x03(\v28.products.IncreaseProductCountRequest.IncreaseStockBatchR\bproducts\x1a<\n" +
-	"\x12IncreaseStockBatch\x12\x10\n" +
+	"\x05price\x18\x04 \x01(\x01R\x05price\"\xbf\x01\n" +
+	"\x1bIncreaseProductCountRequest\x12[\n" +
+	"\bproducts\x18\x01 \x03(\v2?.products.IncreaseProductCountRequest.IncreaseProductCountBatchR\bproducts\x1aC\n" +
+	"\x19IncreaseProductCountBatch\x12\x10\n" +
 	"\x03sku\x18\x01 \x01(\x04R\x03sku\x12\x14\n" +
 	"\x05count\x18\x02 \x01(\rR\x05count\"\x1e\n" +
-	"\x1cIncreaseProductCountResponse\"\xb1\x01\n" +
-	"\x1bDecreaseProductCountRequest\x12T\n" +
-	"\bproducts\x18\x01 \x03(\v28.products.DecreaseProductCountRequest.IncreaseStockBatchR\bproducts\x1a<\n" +
-	"\x12IncreaseStockBatch\x12\x10\n" +
+	"\x1cIncreaseProductCountResponse\"\xbf\x01\n" +
+	"\x1bDecreaseProductCountRequest\x12[\n" +
+	"\bproducts\x18\x01 \x03(\v2?.products.DecreaseProductCountRequest.IncreaseProductCountBatchR\bproducts\x1aC\n" +
+	"\x19IncreaseProductCountBatch\x12\x10\n" +
 	"\x03sku\x18\x01 \x01(\x04R\x03sku\x12\x14\n" +
 	"\x05count\x18\x02 \x01(\rR\x05count\"\x1e\n" +
 	"\x1cDecreaseProductCountResponse2\xd0\x03\n" +
@@ -449,18 +449,18 @@ func file_api_v1_products_proto_rawDescGZIP() []byte {
 
 var file_api_v1_products_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_api_v1_products_proto_goTypes = []any{
-	(*GetProductRequest)(nil),                              // 0: products.GetProductRequest
-	(*GetProductResponse)(nil),                             // 1: products.GetProductResponse
-	(*IncreaseProductCountRequest)(nil),                    // 2: products.IncreaseProductCountRequest
-	(*IncreaseProductCountResponse)(nil),                   // 3: products.IncreaseProductCountResponse
-	(*DecreaseProductCountRequest)(nil),                    // 4: products.DecreaseProductCountRequest
-	(*DecreaseProductCountResponse)(nil),                   // 5: products.DecreaseProductCountResponse
-	(*IncreaseProductCountRequest_IncreaseStockBatch)(nil), // 6: products.IncreaseProductCountRequest.IncreaseStockBatch
-	(*DecreaseProductCountRequest_IncreaseStockBatch)(nil), // 7: products.DecreaseProductCountRequest.IncreaseStockBatch
+	(*GetProductRequest)(nil),                                     // 0: products.GetProductRequest
+	(*GetProductResponse)(nil),                                    // 1: products.GetProductResponse
+	(*IncreaseProductCountRequest)(nil),                           // 2: products.IncreaseProductCountRequest
+	(*IncreaseProductCountResponse)(nil),                          // 3: products.IncreaseProductCountResponse
+	(*DecreaseProductCountRequest)(nil),                           // 4: products.DecreaseProductCountRequest
+	(*DecreaseProductCountResponse)(nil),                          // 5: products.DecreaseProductCountResponse
+	(*IncreaseProductCountRequest_IncreaseProductCountBatch)(nil), // 6: products.IncreaseProductCountRequest.IncreaseProductCountBatch
+	(*DecreaseProductCountRequest_IncreaseProductCountBatch)(nil), // 7: products.DecreaseProductCountRequest.IncreaseProductCountBatch
 }
 var file_api_v1_products_proto_depIdxs = []int32{
-	6, // 0: products.IncreaseProductCountRequest.products:type_name -> products.IncreaseProductCountRequest.IncreaseStockBatch
-	7, // 1: products.DecreaseProductCountRequest.products:type_name -> products.DecreaseProductCountRequest.IncreaseStockBatch
+	6, // 0: products.IncreaseProductCountRequest.products:type_name -> products.IncreaseProductCountRequest.IncreaseProductCountBatch
+	7, // 1: products.DecreaseProductCountRequest.products:type_name -> products.DecreaseProductCountRequest.IncreaseProductCountBatch
 	0, // 2: products.Products.GetProduct:input_type -> products.GetProductRequest
 	2, // 3: products.Products.IncreaseProductCount:input_type -> products.IncreaseProductCountRequest
 	4, // 4: products.Products.DecreaseProductCount:input_type -> products.DecreaseProductCountRequest

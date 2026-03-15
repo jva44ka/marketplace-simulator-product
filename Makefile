@@ -27,9 +27,6 @@ up-migrations:
 compile-sql-bin:
 	$(LOCAL_BIN)/sqlc generate
 
-generate-swagger-bin:
-	$(LOCAL_BIN)/swag init -g cmd/server/main.go -o internal/infra/swagger --parseDependency --parseInternal
-
 proto-generate:
 	protoc \
       -I . \
