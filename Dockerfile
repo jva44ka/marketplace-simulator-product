@@ -17,6 +17,17 @@ RUN CGO_ENABLED=0 \
     go build -o app ./cmd/server
 
 
+# ---------- MIGRATOR STAGE ----------
+FROM golang:latest AS migrator
+
+WORKDIR /app
+
+COPY migrations ./migrations
+RUN go install github.com/pressly/goose/v3/cmd/goose@v3.24.1
+
+ENTRYPOINT ["goose", "-dir", "/app/migrations", "postgres"]
+
+
 # ---------- RUNTIME STAGE ----------
 FROM gcr.io/distroless/base-debian12
 
