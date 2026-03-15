@@ -30,9 +30,6 @@ compile-sql-bin:
 generate-swagger-bin:
 	$(LOCAL_BIN)/swag init -g cmd/server/main.go -o internal/infra/swagger --parseDependency --parseInternal
 
-generate-swagger:
-	swag init -g cmd/server/main.go -o swagger --parseDependency --parseInternal
-
 proto-generate:
 	protoc \
       -I . \

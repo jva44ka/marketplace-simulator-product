@@ -87,7 +87,7 @@ func NewApp(cfg *config.Config) (*App, error) {
 	// swagger json
 	httpMux.Handle("/api/", http.StripPrefix(
 		"/api/",
-		http.FileServer(http.Dir("./swagger/api")),
+		http.FileServer(http.Dir("./swagger/api/v1")),
 	))
 	// swagger UI
 	httpMux.HandleFunc("/swagger/", func(w http.ResponseWriter, r *http.Request) {
