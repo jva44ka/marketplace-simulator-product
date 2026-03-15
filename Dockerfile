@@ -22,8 +22,9 @@ FROM gcr.io/distroless/base-debian12
 
 WORKDIR /app
 
-# Копируем только бинарник
+# Копируем бинарник и swagger-файлы
 COPY --from=builder /app/app /app/app
+COPY --from=builder /app/swagger /app/swagger
 
 EXPOSE 5000
 
