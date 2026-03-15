@@ -74,10 +74,6 @@ func (s *ProductService) DecreaseCount(ctx context.Context, products []UpdatePro
 		existingProduct.Count -= product.Delta
 	}
 
-	for _, product := range products {
-		existingProductsMap[product.Sku].Count = +product.Delta
-	}
-
 	existingProductsSlice := slices.Collect(maps.Values(existingProductsMap))
 
 	if err = s.productRepository.UpdateCount(ctx, existingProductsSlice); err != nil {
