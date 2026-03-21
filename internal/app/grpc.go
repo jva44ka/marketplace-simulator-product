@@ -2,8 +2,10 @@ package app
 
 import (
 	"context"
+	"errors"
 
 	pb "github.com/jva44ka/ozon-simulator-go-products/internal/app/gen/ozon-simulator-go-products/api/v1/proto"
+	errors2 "github.com/jva44ka/ozon-simulator-go-products/internal/domain/errors"
 	"github.com/jva44ka/ozon-simulator-go-products/internal/domain/service"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -27,8 +29,7 @@ func (s *GrpcService) GetProduct(ctx context.Context, request *pb.GetProductRequ
 
 	product, err := s.ProductService.GetProductBySku(ctx, request.Sku)
 	if err != nil {
-		//TODO: Маппинг конкретных внутренних ошибок на статус коды
-		return nil, status.Errorf(codes.Internal, "error getting product: %v", err)
+		return nil, grpcStatusFromErr(err)
 	}
 
 	return &pb.GetProductResponse{
@@ -43,7 +44,7 @@ func (s *GrpcService) IncreaseProductCount(
 	ctx context.Context,
 	request *pb.IncreaseProductCountRequest) (*pb.IncreaseProductCountResponse, error) {
 	if len(request.Products) == 0 {
-		return nil, status.Errorf(codes.InvalidArgument, "Products must not be empty")
+		return nil, status.Errorf(codes.InvalidArgument, "products must not be empty")
 	}
 
 	products := make([]service.UpdateProductCount, 0, len(request.Products))
@@ -58,8 +59,7 @@ func (s *GrpcService) IncreaseProductCount(
 	}
 
 	if err := s.ProductService.IncreaseCount(ctx, products); err != nil {
-		//TODO: Маппинг конкретных внутренних ошибок на статус коды
-		return nil, status.Errorf(codes.Internal, "error increasing stock: %v", err)
+		return nil, grpcStatusFromErr(err)
 	}
 
 	return &pb.IncreaseProductCountResponse{}, nil
@@ -84,9 +84,21 @@ func (s *GrpcService) DecreaseProductCount(
 	}
 
 	if err := s.ProductService.DecreaseCount(ctx, products); err != nil {
-		//TODO: Маппинг конкретных внутренних ошибок на статус коды
-		return nil, status.Errorf(codes.Internal, "error decreasing stock: %v", err)
+		return nil, grpcStatusFromErr(err)
 	}
 
 	return &pb.DecreaseProductCountResponse{}, nil
+}
+
+// grpcStatusFromErr маппит доменные ошибки на gRPC status codes.
+// Неизвестные ошибки → codes.Internal.
+func grpcStatusFromErr(err error) error {
+	switch {
+	case errors.Is(err, errors2.ErrProductNotFound):
+		return status.Errorf(codes.NotFound, err.Error())
+	case errors.Is(err, errors2.ErrInsufficientProduct):
+		return status.Errorf(codes.FailedPrecondition, err.Error())
+	default:
+		return status.Errorf(codes.Internal, "internal error: %v", err)
+	}
 }
