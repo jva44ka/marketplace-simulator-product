@@ -2,7 +2,7 @@
 package main
 
 import (
-	"log"
+	"log/slog"
 	"os"
 
 	appPkg "github.com/jva44ka/ozon-simulator-go-products/internal/app"
@@ -12,16 +12,18 @@ import (
 func main() {
 	configImpl, err := config.LoadConfig(os.Getenv("CONFIG_PATH"))
 	if err != nil {
-		log.Fatal("config.LoadConfig: %w", err)
+		slog.Error("failed to load config", "err", err)
+		os.Exit(1)
 	}
 
 	app, err := appPkg.NewApp(configImpl)
 	if err != nil {
-		log.Fatal(err)
+		slog.Error("failed to create app", "err", err)
+		os.Exit(1)
 	}
 
-	err = app.Run()
-	if err != nil {
-		log.Fatal(err)
+	if err = app.Run(); err != nil {
+		slog.Error("app stopped", "err", err)
+		os.Exit(1)
 	}
 }

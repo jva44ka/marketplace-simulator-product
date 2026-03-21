@@ -49,6 +49,7 @@ func NewApp(cfg *config.Config) (*App, error) {
 			middleware.Panic,
 			middleware.ResponseTime(metrics.NewRequestMetrics()),
 			middleware.Logger(cfg),
+			middleware.StatusCode,
 			middleware.Auth(cfg),
 			middleware.Validate,
 		),

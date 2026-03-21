@@ -6,6 +6,8 @@ import (
 
 	"github.com/jva44ka/ozon-simulator-go-products/internal/infra/config"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
@@ -18,7 +20,7 @@ func Logger(cfg *config.Config) grpc.UnaryServerInterceptor {
 		}
 
 		if resp, err = handler(ctx, req); err != nil {
-			slog.ErrorContext(ctx, "request failed", "method", info.FullMethod, "err", err)
+			logError(ctx, info.FullMethod, err)
 		}
 
 		if cfg.Logging.LogResponseBody {
@@ -29,5 +31,35 @@ func Logger(cfg *config.Config) grpc.UnaryServerInterceptor {
 		}
 
 		return resp, err
+	}
+}
+
+func logError(ctx context.Context, method string, err error) {
+	st, ok := status.FromError(err)
+	if !ok {
+		slog.ErrorContext(ctx, "request failed", "method", method, "err", err)
+		return
+	}
+
+	if isClientError(st.Code()) {
+		slog.WarnContext(ctx, "request failed", "method", method, "code", st.Code(), "err", st.Message())
+	} else {
+		slog.ErrorContext(ctx, "request failed", "method", method, "code", st.Code(), "err", st.Message())
+	}
+}
+
+func isClientError(code codes.Code) bool {
+	switch code {
+	case codes.InvalidArgument,
+		codes.NotFound,
+		codes.AlreadyExists,
+		codes.PermissionDenied,
+		codes.Unauthenticated,
+		codes.FailedPrecondition,
+		codes.OutOfRange,
+		codes.Canceled:
+		return true
+	default:
+		return false
 	}
 }

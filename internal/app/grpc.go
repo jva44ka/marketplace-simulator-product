@@ -2,10 +2,9 @@ package app
 
 import (
 	"context"
-	"errors"
+	"fmt"
 
 	pb "github.com/jva44ka/ozon-simulator-go-products/internal/app/gen/ozon-simulator-go-products/api/v1/proto"
-	domainErrors "github.com/jva44ka/ozon-simulator-go-products/internal/domain/errors"
 	"github.com/jva44ka/ozon-simulator-go-products/internal/domain/service"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -29,7 +28,7 @@ func (s *GrpcService) GetProduct(ctx context.Context, request *pb.GetProductRequ
 
 	product, err := s.ProductService.GetProductBySku(ctx, request.Sku)
 	if err != nil {
-		return nil, grpcStatusFromErr(err)
+		return nil, fmt.Errorf("GrpcService.GetProduct: %w", err)
 	}
 
 	return &pb.GetProductResponse{
@@ -59,7 +58,7 @@ func (s *GrpcService) IncreaseProductCount(
 	}
 
 	if err := s.ProductService.IncreaseCount(ctx, products); err != nil {
-		return nil, grpcStatusFromErr(err)
+		return nil, fmt.Errorf("GrpcService.IncreaseProductCount: %w", err)
 	}
 
 	return &pb.IncreaseProductCountResponse{}, nil
@@ -84,19 +83,8 @@ func (s *GrpcService) DecreaseProductCount(
 	}
 
 	if err := s.ProductService.DecreaseCount(ctx, products); err != nil {
-		return nil, grpcStatusFromErr(err)
+		return nil, fmt.Errorf("GrpcService.DecreaseProductCount: %w", err)
 	}
 
 	return &pb.DecreaseProductCountResponse{}, nil
-}
-
-func grpcStatusFromErr(err error) error {
-	switch {
-	case errors.Is(err, &domainErrors.ProductNotFoundError{}):
-		return status.Errorf(codes.NotFound, err.Error())
-	case errors.Is(err, &domainErrors.InsufficientProductError{}):
-		return status.Errorf(codes.FailedPrecondition, err.Error())
-	default:
-		return status.Errorf(codes.Internal, "internal error: %v", err)
-	}
 }
