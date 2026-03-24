@@ -21,7 +21,9 @@ const _ = grpc.SupportPackageIsVersion9
 const (
 	Products_GetProduct_FullMethodName           = "/products.Products/GetProduct"
 	Products_IncreaseProductCount_FullMethodName = "/products.Products/IncreaseProductCount"
-	Products_DecreaseProductCount_FullMethodName = "/products.Products/DecreaseProductCount"
+	Products_ReserveProductCount_FullMethodName  = "/products.Products/ReserveProductCount"
+	Products_ReleaseReservation_FullMethodName   = "/products.Products/ReleaseReservation"
+	Products_ConfirmReservation_FullMethodName   = "/products.Products/ConfirmReservation"
 )
 
 // ProductsClient is the client API for Products service.
@@ -30,7 +32,9 @@ const (
 type ProductsClient interface {
 	GetProduct(ctx context.Context, in *GetProductRequest, opts ...grpc.CallOption) (*GetProductResponse, error)
 	IncreaseProductCount(ctx context.Context, in *IncreaseProductCountRequest, opts ...grpc.CallOption) (*IncreaseProductCountResponse, error)
-	DecreaseProductCount(ctx context.Context, in *DecreaseProductCountRequest, opts ...grpc.CallOption) (*DecreaseProductCountResponse, error)
+	ReserveProductCount(ctx context.Context, in *ReserveProductCountRequest, opts ...grpc.CallOption) (*ReserveProductCountResponse, error)
+	ReleaseReservation(ctx context.Context, in *ReleaseReservationRequest, opts ...grpc.CallOption) (*ReleaseReservationResponse, error)
+	ConfirmReservation(ctx context.Context, in *ConfirmReservationRequest, opts ...grpc.CallOption) (*ConfirmReservationResponse, error)
 }
 
 type productsClient struct {
@@ -61,10 +65,30 @@ func (c *productsClient) IncreaseProductCount(ctx context.Context, in *IncreaseP
 	return out, nil
 }
 
-func (c *productsClient) DecreaseProductCount(ctx context.Context, in *DecreaseProductCountRequest, opts ...grpc.CallOption) (*DecreaseProductCountResponse, error) {
+func (c *productsClient) ReserveProductCount(ctx context.Context, in *ReserveProductCountRequest, opts ...grpc.CallOption) (*ReserveProductCountResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(DecreaseProductCountResponse)
-	err := c.cc.Invoke(ctx, Products_DecreaseProductCount_FullMethodName, in, out, cOpts...)
+	out := new(ReserveProductCountResponse)
+	err := c.cc.Invoke(ctx, Products_ReserveProductCount_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *productsClient) ReleaseReservation(ctx context.Context, in *ReleaseReservationRequest, opts ...grpc.CallOption) (*ReleaseReservationResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ReleaseReservationResponse)
+	err := c.cc.Invoke(ctx, Products_ReleaseReservation_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *productsClient) ConfirmReservation(ctx context.Context, in *ConfirmReservationRequest, opts ...grpc.CallOption) (*ConfirmReservationResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ConfirmReservationResponse)
+	err := c.cc.Invoke(ctx, Products_ConfirmReservation_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -77,7 +101,9 @@ func (c *productsClient) DecreaseProductCount(ctx context.Context, in *DecreaseP
 type ProductsServer interface {
 	GetProduct(context.Context, *GetProductRequest) (*GetProductResponse, error)
 	IncreaseProductCount(context.Context, *IncreaseProductCountRequest) (*IncreaseProductCountResponse, error)
-	DecreaseProductCount(context.Context, *DecreaseProductCountRequest) (*DecreaseProductCountResponse, error)
+	ReserveProductCount(context.Context, *ReserveProductCountRequest) (*ReserveProductCountResponse, error)
+	ReleaseReservation(context.Context, *ReleaseReservationRequest) (*ReleaseReservationResponse, error)
+	ConfirmReservation(context.Context, *ConfirmReservationRequest) (*ConfirmReservationResponse, error)
 	mustEmbedUnimplementedProductsServer()
 }
 
@@ -94,8 +120,14 @@ func (UnimplementedProductsServer) GetProduct(context.Context, *GetProductReques
 func (UnimplementedProductsServer) IncreaseProductCount(context.Context, *IncreaseProductCountRequest) (*IncreaseProductCountResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method IncreaseProductCount not implemented")
 }
-func (UnimplementedProductsServer) DecreaseProductCount(context.Context, *DecreaseProductCountRequest) (*DecreaseProductCountResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method DecreaseProductCount not implemented")
+func (UnimplementedProductsServer) ReserveProductCount(context.Context, *ReserveProductCountRequest) (*ReserveProductCountResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ReserveProductCount not implemented")
+}
+func (UnimplementedProductsServer) ReleaseReservation(context.Context, *ReleaseReservationRequest) (*ReleaseReservationResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ReleaseReservation not implemented")
+}
+func (UnimplementedProductsServer) ConfirmReservation(context.Context, *ConfirmReservationRequest) (*ConfirmReservationResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ConfirmReservation not implemented")
 }
 func (UnimplementedProductsServer) mustEmbedUnimplementedProductsServer() {}
 func (UnimplementedProductsServer) testEmbeddedByValue()                  {}
@@ -154,20 +186,56 @@ func _Products_IncreaseProductCount_Handler(srv interface{}, ctx context.Context
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Products_DecreaseProductCount_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(DecreaseProductCountRequest)
+func _Products_ReserveProductCount_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ReserveProductCountRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ProductsServer).DecreaseProductCount(ctx, in)
+		return srv.(ProductsServer).ReserveProductCount(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: Products_DecreaseProductCount_FullMethodName,
+		FullMethod: Products_ReserveProductCount_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ProductsServer).DecreaseProductCount(ctx, req.(*DecreaseProductCountRequest))
+		return srv.(ProductsServer).ReserveProductCount(ctx, req.(*ReserveProductCountRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Products_ReleaseReservation_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ReleaseReservationRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ProductsServer).ReleaseReservation(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Products_ReleaseReservation_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ProductsServer).ReleaseReservation(ctx, req.(*ReleaseReservationRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Products_ConfirmReservation_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ConfirmReservationRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ProductsServer).ConfirmReservation(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Products_ConfirmReservation_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ProductsServer).ConfirmReservation(ctx, req.(*ConfirmReservationRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -188,8 +256,16 @@ var Products_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _Products_IncreaseProductCount_Handler,
 		},
 		{
-			MethodName: "DecreaseProductCount",
-			Handler:    _Products_DecreaseProductCount_Handler,
+			MethodName: "ReserveProductCount",
+			Handler:    _Products_ReserveProductCount_Handler,
+		},
+		{
+			MethodName: "ReleaseReservation",
+			Handler:    _Products_ReleaseReservation_Handler,
+		},
+		{
+			MethodName: "ConfirmReservation",
+			Handler:    _Products_ConfirmReservation_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

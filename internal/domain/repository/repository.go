@@ -77,16 +77,30 @@ WHERE sku = ANY($1);`
 	return products, nil
 }
 
+// UpdateCount обновляет count с оптимистичной блокировкой через xmin.
+// Используется для Increase, Reserve, Release.
 func (r *ProductRepository) UpdateCount(ctx context.Context, products []*model.Product) error {
 	const query = `
 UPDATE products
 SET count = $3
 WHERE sku = $1 AND xmin = $2;`
 
+	return r.execBatch(ctx, "UpdateCount", products, query, func(p *model.Product) []any {
+		return []any{int64(p.Sku), p.TransactionId, p.Count}
+	})
+}
+
+func (r *ProductRepository) execBatch(
+	ctx context.Context,
+	method string,
+	products []*model.Product,
+	query string,
+	args func(*model.Product) []any,
+) error {
 	return pgx.BeginTxFunc(ctx, r.pool, pgx.TxOptions{}, func(tx pgx.Tx) error {
 		batch := &pgx.Batch{}
 		for _, p := range products {
-			batch.Queue(query, int64(p.Sku), p.TransactionId, p.Count)
+			batch.Queue(query, args(p)...)
 		}
 
 		results := tx.SendBatch(ctx, batch)
@@ -96,18 +110,18 @@ WHERE sku = $1 AND xmin = $2;`
 		for range products {
 			tag, err := results.Exec()
 			if err != nil {
-				return fmt.Errorf("ProductRepository.UpdateCount: %w", err)
+				return fmt.Errorf("ProductRepository.%s: %w", method, err)
 			}
 			affected += tag.RowsAffected()
 		}
 
 		if affected != int64(len(products)) {
-			r.metrics.ReportRequest("UpdateCount", "error")
+			r.metrics.ReportRequest(method, "error")
 			r.metrics.ReportOptimisticLockFailure()
-			return fmt.Errorf("ProductRepository.UpdateCount: optimistic lock failed, retry required")
+			return fmt.Errorf("ProductRepository.%s: optimistic lock failed, retry required", method)
 		}
 
-		r.metrics.ReportRequest("UpdateCount", "success")
+		r.metrics.ReportRequest(method, "success")
 		return nil
 	})
 }

@@ -3,13 +3,21 @@ package app
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jva44ka/ozon-simulator-go-products/internal/app/middleware"
+	"github.com/jva44ka/ozon-simulator-go-products/internal/domain/reservation"
+	"github.com/jva44ka/ozon-simulator-go-products/internal/domain/repository"
+	"github.com/jva44ka/ozon-simulator-go-products/internal/domain/service"
+	"github.com/jva44ka/ozon-simulator-go-products/internal/infra/config"
+	"github.com/jva44ka/ozon-simulator-go-products/internal/infra/jobs"
+	"github.com/jva44ka/ozon-simulator-go-products/internal/infra/kafka"
 	"github.com/jva44ka/ozon-simulator-go-products/internal/infra/metrics"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"google.golang.org/grpc"
@@ -17,15 +25,14 @@ import (
 	"google.golang.org/grpc/reflection"
 
 	pb "github.com/jva44ka/ozon-simulator-go-products/internal/app/gen/ozon-simulator-go-products/api/v1/proto"
-	"github.com/jva44ka/ozon-simulator-go-products/internal/domain/repository"
-	"github.com/jva44ka/ozon-simulator-go-products/internal/domain/service"
-	"github.com/jva44ka/ozon-simulator-go-products/internal/infra/config"
 )
 
 type App struct {
 	grpcServer *grpc.Server
 	httpServer *http.Server
 	cfg        *config.Config
+	job        *jobs.ReservationExpiryJob
+	producer   *kafka.Producer
 }
 
 func NewApp(cfg *config.Config) (*App, error) {
@@ -41,8 +48,18 @@ func NewApp(cfg *config.Config) (*App, error) {
 		return nil, fmt.Errorf("pgxpool.New: %w", err)
 	}
 
-	repo := repository.NewProductRepository(pool, metrics.NewDbMetrics())
-	domainService := service.NewProductService(repo)
+	jobInterval, err := time.ParseDuration(cfg.Reservation.JobInterval)
+	if err != nil {
+		return nil, fmt.Errorf("parse reservation.job-interval: %w", err)
+	}
+
+	dbMetrics := metrics.NewDbMetrics()
+	repo := repository.NewProductRepository(pool, dbMetrics)
+	reservationRepo := reservation.NewPgxReservationRepository(pool, dbMetrics)
+	producer := kafka.NewProducer(cfg.Kafka.Brokers, cfg.Kafka.ReservationExpiredTopic)
+
+	domainService := service.NewProductService(repo, reservationRepo)
+	expiryJob := jobs.NewReservationExpiryJob(reservationRepo, domainService, producer, jobInterval)
 
 	grpcServer := grpc.NewServer(
 		grpc.ChainUnaryInterceptor(
@@ -86,19 +103,15 @@ func NewApp(cfg *config.Config) (*App, error) {
 	reflection.Register(grpcServer)
 
 	httpMux := http.NewServeMux()
-	// grpc gateway
 	httpMux.Handle("/", mux)
-	// swagger json
 	httpMux.Handle("/api/", http.StripPrefix(
 		"/api/",
 		http.FileServer(http.Dir("./swagger/api/v1")),
 	))
-	// swagger UI
 	httpMux.HandleFunc("/swagger/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html")
 		_, _ = fmt.Fprint(w, swaggerUiHtml)
 	})
-	// prometheus metrics
 	httpMux.Handle("/metrics", promhttp.Handler())
 
 	httpServer := &http.Server{
@@ -110,10 +123,16 @@ func NewApp(cfg *config.Config) (*App, error) {
 		grpcServer: grpcServer,
 		httpServer: httpServer,
 		cfg:        cfg,
+		job:        expiryJob,
+		producer:   producer,
 	}, nil
 }
 
-func (a *App) Run() error {
+func (a *App) Run(ctx context.Context) error {
+	go func() {
+		slog.Info("starting reservation expiry job")
+		a.job.Run(ctx)
+	}()
 
 	lis, err := net.Listen("tcp", ":"+a.cfg.GrpcServer.Port)
 	if err != nil {

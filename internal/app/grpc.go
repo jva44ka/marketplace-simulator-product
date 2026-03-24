@@ -64,27 +64,68 @@ func (s *GrpcService) IncreaseProductCount(
 	return &pb.IncreaseProductCountResponse{}, nil
 }
 
-func (s *GrpcService) DecreaseProductCount(
+func (s *GrpcService) ReserveProductCount(
 	ctx context.Context,
-	request *pb.DecreaseProductCountRequest) (*pb.DecreaseProductCountResponse, error) {
+	request *pb.ReserveProductCountRequest) (*pb.ReserveProductCountResponse, error) {
 	if len(request.Products) == 0 {
 		return nil, status.Errorf(codes.InvalidArgument, "products must not be empty")
 	}
 
-	products := make([]service.UpdateProductCount, 0, len(request.Products))
+	products := make([]service.UpdateProductCountWithTTL, 0, len(request.Products))
 	for _, stock := range request.Products {
 		if stock.Sku < 1 {
 			return nil, status.Errorf(codes.InvalidArgument, "sku must be more than zero")
 		}
-		products = append(products, service.UpdateProductCount{
-			Sku:   stock.Sku,
-			Delta: stock.Count,
+		if stock.ReservedUntil == nil {
+			return nil, status.Errorf(codes.InvalidArgument, "reserved_until must be set")
+		}
+		products = append(products, service.UpdateProductCountWithTTL{
+			Sku:           stock.Sku,
+			Delta:         stock.Count,
+			ReservedUntil: stock.ReservedUntil.AsTime(),
 		})
 	}
 
-	if err := s.ProductService.DecreaseCount(ctx, products); err != nil {
-		return nil, fmt.Errorf("GrpcService.DecreaseProductCount: %w", err)
+	reservationIds, err := s.ProductService.ReserveCount(ctx, products)
+	if err != nil {
+		return nil, fmt.Errorf("GrpcService.ReserveProductCount: %w", err)
 	}
 
-	return &pb.DecreaseProductCountResponse{}, nil
+	results := make([]*pb.ReserveProductCountResponse_ReservationResult, 0, len(reservationIds))
+	for sku, id := range reservationIds {
+		results = append(results, &pb.ReserveProductCountResponse_ReservationResult{
+			ReservationId: id,
+			Sku:           sku,
+		})
+	}
+
+	return &pb.ReserveProductCountResponse{Results: results}, nil
+}
+
+func (s *GrpcService) ReleaseReservation(
+	ctx context.Context,
+	request *pb.ReleaseReservationRequest) (*pb.ReleaseReservationResponse, error) {
+	if len(request.ReservationIds) == 0 {
+		return nil, status.Errorf(codes.InvalidArgument, "reservation_ids must not be empty")
+	}
+
+	if err := s.ProductService.ReleaseReservationByIds(ctx, request.ReservationIds); err != nil {
+		return nil, fmt.Errorf("GrpcService.ReleaseReservation: %w", err)
+	}
+
+	return &pb.ReleaseReservationResponse{}, nil
+}
+
+func (s *GrpcService) ConfirmReservation(
+	ctx context.Context,
+	request *pb.ConfirmReservationRequest) (*pb.ConfirmReservationResponse, error) {
+	if len(request.ReservationIds) == 0 {
+		return nil, status.Errorf(codes.InvalidArgument, "reservation_ids must not be empty")
+	}
+
+	if err := s.ProductService.ConfirmReservationByIds(ctx, request.ReservationIds); err != nil {
+		return nil, fmt.Errorf("GrpcService.ConfirmReservation: %w", err)
+	}
+
+	return &pb.ConfirmReservationResponse{}, nil
 }

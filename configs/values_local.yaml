@@ -20,3 +20,11 @@ authorization:
 logging:
   log-request-body: true
   log-response-body: true
+
+kafka:
+  brokers:
+    - localhost:9092
+  reservation-expired-topic: reservation.expired
+
+reservation:
+  job-interval: 10m

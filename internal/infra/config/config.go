@@ -41,6 +41,15 @@ type Config struct {
 		LogRequestBody  bool `yaml:"log-request-body"`
 		LogResponseBody bool `yaml:"log-response-body"`
 	} `yaml:"logging"`
+
+	Kafka struct {
+		Brokers                 []string `yaml:"brokers"`
+		ReservationExpiredTopic string   `yaml:"reservation-expired-topic"`
+	} `yaml:"kafka"`
+
+	Reservation struct {
+		JobInterval string `yaml:"job-interval"`
+	} `yaml:"reservation"`
 }
 
 func LoadConfig(filename string) (*Config, error) {
