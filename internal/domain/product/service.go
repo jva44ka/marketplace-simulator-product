@@ -17,20 +17,20 @@ type Repository interface {
 }
 
 type ReservationRepository interface {
-	Insert(ctx context.Context, sku uint64, count uint32) (int64, error)
+	Insert(ctx context.Context, sku uint64, count uint32) (reservation.Reservation, error)
 	GetByIds(ctx context.Context, ids []int64) ([]reservation.Reservation, error)
 	DeleteByIds(ctx context.Context, ids []int64) error
 }
 
 type Service struct {
-	repo         Repository
-	reservations ReservationRepository
+	productRepository     Repository
+	reservationRepository ReservationRepository
 }
 
-func NewService(repo Repository, reservations ReservationRepository) *Service {
+func NewService(productRepository Repository, reservationRepository ReservationRepository) *Service {
 	return &Service{
-		repo:         repo,
-		reservations: reservations,
+		productRepository:     productRepository,
+		reservationRepository: reservationRepository,
 	}
 }
 
@@ -40,56 +40,58 @@ type UpdateCount struct {
 }
 
 func (s *Service) GetProductBySku(ctx context.Context, sku uint64) (*Product, error) {
-	p, err := s.repo.GetProductBySku(ctx, sku)
+	product, err := s.productRepository.GetProductBySku(ctx, sku)
 	if err != nil {
 		return nil, fmt.Errorf("productRepository.GetProductBySku: %w", err)
 	}
-	if p == nil {
+
+	if product == nil {
 		return nil, domainErrors.NewProductNotFoundError(sku)
 	}
-	return p, nil
+
+	return product, nil
 }
 
 func (s *Service) IncreaseCount(ctx context.Context, products []UpdateCount) error {
-	existingMap, err := s.validateProductsExist(ctx, products)
+	existinProductsMap, err := s.validateProductsExist(ctx, products)
 	if err != nil {
 		return err
 	}
-	for _, p := range products {
-		existingMap[p.Sku].Count += p.Delta
+	for _, product := range products {
+		existinProductsMap[product.Sku].Count += product.Delta
 	}
-	return s.repo.UpdateCount(ctx, slices.Collect(maps.Values(existingMap)))
+	return s.productRepository.UpdateCount(ctx, slices.Collect(maps.Values(existinProductsMap)))
 }
 
 func (s *Service) Reserve(ctx context.Context, products []UpdateCount) (map[uint64]int64, error) {
-	existingMap, err := s.validateProductsExist(ctx, products)
+	existingProductsMap, err := s.validateProductsExist(ctx, products)
 	if err != nil {
 		return nil, err
 	}
-	for _, p := range products {
-		existing := existingMap[p.Sku]
-		if existing.Count < p.Delta {
-			return nil, domainErrors.NewInsufficientProductError(p.Sku, existing.Count, p.Delta)
+	for _, product := range products {
+		existingProduct := existingProductsMap[product.Sku]
+		if existingProduct.Count < product.Delta {
+			return nil, domainErrors.NewInsufficientProductError(product.Sku, existingProduct.Count, product.Delta)
 		}
-		existing.Count -= p.Delta
+		existingProduct.Count -= product.Delta
 	}
-	if err = s.repo.UpdateCount(ctx, slices.Collect(maps.Values(existingMap))); err != nil {
+	if err = s.productRepository.UpdateCount(ctx, slices.Collect(maps.Values(existingProductsMap))); err != nil {
 		return nil, fmt.Errorf("ProductService.Reserve: %w", err)
 	}
 
 	reservationIds := make(map[uint64]int64, len(products))
 	for _, p := range products {
-		id, err := s.reservations.Insert(ctx, p.Sku, p.Delta)
+		rv, err := s.reservationRepository.Insert(ctx, p.Sku, p.Delta)
 		if err != nil {
 			return nil, fmt.Errorf("ProductService.Reserve: %w", err)
 		}
-		reservationIds[p.Sku] = id
+		reservationIds[p.Sku] = rv.Id
 	}
 	return reservationIds, nil
 }
 
 func (s *Service) ReleaseReservations(ctx context.Context, ids []int64) error {
-	reservations, err := s.reservations.GetByIds(ctx, ids)
+	reservations, err := s.reservationRepository.GetByIds(ctx, ids)
 	if err != nil {
 		return fmt.Errorf("ProductService.ReleaseReservations: %w", err)
 	}
@@ -100,47 +102,45 @@ func (s *Service) ReleaseReservations(ctx context.Context, ids []int64) error {
 	if err = s.ReleaseReservation(ctx, products); err != nil {
 		return err
 	}
-	return s.reservations.DeleteByIds(ctx, ids)
+	return s.reservationRepository.DeleteByIds(ctx, ids)
 }
 
 func (s *Service) ConfirmReservations(ctx context.Context, ids []int64) error {
-	return s.reservations.DeleteByIds(ctx, ids)
+	return s.reservationRepository.DeleteByIds(ctx, ids)
 }
 
-// ReleaseReservation возвращает count без затрагивания таблицы reservations.
-// Используется джобой истечения резерваций.
 func (s *Service) ReleaseReservation(ctx context.Context, products []UpdateCount) error {
-	existingMap, err := s.validateProductsExist(ctx, products)
+	existingProductsMap, err := s.validateProductsExist(ctx, products)
 	if err != nil {
 		return err
 	}
 	for _, p := range products {
-		existingMap[p.Sku].Count += p.Delta
+		existingProductsMap[p.Sku].Count += p.Delta
 	}
-	return s.repo.UpdateCount(ctx, slices.Collect(maps.Values(existingMap)))
+	return s.productRepository.UpdateCount(ctx, slices.Collect(maps.Values(existingProductsMap)))
 }
 
 func (s *Service) validateProductsExist(ctx context.Context, products []UpdateCount) (map[uint64]*Product, error) {
 	skus := make([]uint64, 0, len(products))
-	for _, p := range products {
-		skus = append(skus, p.Sku)
+	for _, product := range products {
+		skus = append(skus, product.Sku)
 	}
 
-	existing, err := s.repo.GetProductsBySkus(ctx, skus)
+	existingProducts, err := s.productRepository.GetProductsBySkus(ctx, skus)
 	if err != nil {
 		return nil, fmt.Errorf("ProductService.validateProductsExist: %w", err)
 	}
 
-	existingMap := make(map[uint64]*Product, len(existing))
-	for _, p := range existing {
-		existingMap[p.Sku] = p
+	existingProductsMap := make(map[uint64]*Product, len(existingProducts))
+	for _, existingProduct := range existingProducts {
+		existingProductsMap[existingProduct.Sku] = existingProduct
 	}
 
-	for _, p := range products {
-		if _, ok := existingMap[p.Sku]; !ok {
-			return nil, domainErrors.NewProductNotFoundError(p.Sku)
+	for _, product := range products {
+		if _, ok := existingProductsMap[product.Sku]; !ok {
+			return nil, domainErrors.NewProductNotFoundError(product.Sku)
 		}
 	}
 
-	return existingMap, nil
+	return existingProductsMap, nil
 }

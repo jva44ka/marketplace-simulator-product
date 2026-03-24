@@ -21,21 +21,25 @@ func NewPgxRepository(pool *pgxpool.Pool, metrics Metrics) *PgxRepository {
 	return &PgxRepository{pool: pool, metrics: metrics}
 }
 
-func (r *PgxRepository) Insert(ctx context.Context, sku uint64, count uint32) (int64, error) {
+func (r *PgxRepository) Insert(ctx context.Context, sku uint64, count uint32) (Reservation, error) {
 	const query = `
 INSERT INTO reservations (sku, count)
 VALUES ($1, $2)
-RETURNING id`
+RETURNING id, sku, count, created_at`
 
-	var id int64
-	err := r.pool.QueryRow(ctx, query, int64(sku), int32(count)).Scan(&id)
+	var rv Reservation
+	var skuInt int64
+	var countInt int32
+	err := r.pool.QueryRow(ctx, query, int64(sku), int32(count)).Scan(&rv.Id, &skuInt, &countInt, &rv.CreatedAt)
 	if err != nil {
 		r.metrics.ReportRequest("InsertReservation", "error")
-		return 0, fmt.Errorf("PgxRepository.Insert: %w", err)
+		return Reservation{}, fmt.Errorf("PgxRepository.Insert: %w", err)
 	}
+	rv.Sku = uint64(skuInt)
+	rv.Count = uint32(countInt)
 
 	r.metrics.ReportRequest("InsertReservation", "success")
-	return id, nil
+	return rv, nil
 }
 
 func (r *PgxRepository) GetByIds(ctx context.Context, ids []int64) ([]Reservation, error) {
