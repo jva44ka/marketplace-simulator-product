@@ -12,8 +12,8 @@ import (
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jva44ka/ozon-simulator-go-products/internal/app/middleware"
-	"github.com/jva44ka/ozon-simulator-go-products/internal/domain/reservation"
 	"github.com/jva44ka/ozon-simulator-go-products/internal/domain/repository"
+	"github.com/jva44ka/ozon-simulator-go-products/internal/domain/reservation"
 	"github.com/jva44ka/ozon-simulator-go-products/internal/domain/service"
 	"github.com/jva44ka/ozon-simulator-go-products/internal/infra/config"
 	"github.com/jva44ka/ozon-simulator-go-products/internal/infra/jobs"
@@ -48,6 +48,11 @@ func NewApp(cfg *config.Config) (*App, error) {
 		return nil, fmt.Errorf("pgxpool.New: %w", err)
 	}
 
+	reservationTTL, err := time.ParseDuration(cfg.Reservation.TTL)
+	if err != nil {
+		return nil, fmt.Errorf("parse reservation.ttl: %w", err)
+	}
+
 	jobInterval, err := time.ParseDuration(cfg.Reservation.JobInterval)
 	if err != nil {
 		return nil, fmt.Errorf("parse reservation.job-interval: %w", err)
@@ -59,7 +64,7 @@ func NewApp(cfg *config.Config) (*App, error) {
 	producer := kafka.NewProducer(cfg.Kafka.Brokers, cfg.Kafka.ReservationExpiredTopic)
 
 	domainService := service.NewProductService(repo, reservationRepo)
-	expiryJob := jobs.NewReservationExpiryJob(reservationRepo, domainService, producer, jobInterval)
+	expiryJob := jobs.NewReservationExpiryJob(reservationRepo, domainService, producer, reservationTTL, jobInterval)
 
 	grpcServer := grpc.NewServer(
 		grpc.ChainUnaryInterceptor(

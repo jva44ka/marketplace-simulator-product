@@ -48,6 +48,7 @@ type Config struct {
 	} `yaml:"kafka"`
 
 	Reservation struct {
+		TTL         string `yaml:"ttl"`
 		JobInterval string `yaml:"job-interval"`
 	} `yaml:"reservation"`
 }

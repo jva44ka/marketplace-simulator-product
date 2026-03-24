@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"maps"
 	"slices"
-	"time"
 
 	domainErrors "github.com/jva44ka/ozon-simulator-go-products/internal/domain/errors"
 	"github.com/jva44ka/ozon-simulator-go-products/internal/domain/model"
@@ -19,7 +18,7 @@ type ProductRepository interface {
 }
 
 type ReservationRepository interface {
-	Insert(ctx context.Context, sku uint64, count uint32, reservedUntil time.Time) (int64, error)
+	Insert(ctx context.Context, sku uint64, count uint32) (int64, error)
 	GetByIds(ctx context.Context, ids []int64) ([]reservation.Reservation, error)
 	DeleteByIds(ctx context.Context, ids []int64) error
 }
@@ -39,12 +38,6 @@ func NewProductService(productRepository ProductRepository, reservationRepositor
 type UpdateProductCount struct {
 	Sku   uint64
 	Delta uint32
-}
-
-type UpdateProductCountWithTTL struct {
-	Sku           uint64
-	Delta         uint32
-	ReservedUntil time.Time
 }
 
 func (s *ProductService) GetProductBySku(ctx context.Context, sku uint64) (*model.Product, error) {
@@ -75,13 +68,8 @@ func (s *ProductService) IncreaseCount(ctx context.Context, products []UpdatePro
 
 // ReserveCount уменьшает доступный count и создаёт записи в reservations.
 // Возвращает map[sku → reservation_id].
-func (s *ProductService) ReserveCount(ctx context.Context, products []UpdateProductCountWithTTL) (map[uint64]int64, error) {
-	plain := make([]UpdateProductCount, len(products))
-	for i, p := range products {
-		plain[i] = UpdateProductCount{Sku: p.Sku, Delta: p.Delta}
-	}
-
-	existingProductsMap, err := s.validateProductsExist(ctx, plain)
+func (s *ProductService) ReserveCount(ctx context.Context, products []UpdateProductCount) (map[uint64]int64, error) {
+	existingProductsMap, err := s.validateProductsExist(ctx, products)
 	if err != nil {
 		return nil, err
 	}
@@ -100,7 +88,7 @@ func (s *ProductService) ReserveCount(ctx context.Context, products []UpdateProd
 
 	reservationIds := make(map[uint64]int64, len(products))
 	for _, p := range products {
-		id, err := s.reservationRepository.Insert(ctx, p.Sku, p.Delta, p.ReservedUntil)
+		id, err := s.reservationRepository.Insert(ctx, p.Sku, p.Delta)
 		if err != nil {
 			return nil, fmt.Errorf("reservationRepository.Insert: %w", err)
 		}

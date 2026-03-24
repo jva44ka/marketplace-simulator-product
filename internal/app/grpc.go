@@ -64,42 +64,38 @@ func (s *GrpcService) IncreaseProductCount(
 	return &pb.IncreaseProductCountResponse{}, nil
 }
 
-func (s *GrpcService) ReserveProductCount(
+func (s *GrpcService) ReserveProduct(
 	ctx context.Context,
-	request *pb.ReserveProductCountRequest) (*pb.ReserveProductCountResponse, error) {
+	request *pb.ReserveProductRequest) (*pb.ReserveProductResponse, error) {
 	if len(request.Products) == 0 {
 		return nil, status.Errorf(codes.InvalidArgument, "products must not be empty")
 	}
 
-	products := make([]service.UpdateProductCountWithTTL, 0, len(request.Products))
+	products := make([]service.UpdateProductCount, 0, len(request.Products))
 	for _, stock := range request.Products {
 		if stock.Sku < 1 {
 			return nil, status.Errorf(codes.InvalidArgument, "sku must be more than zero")
 		}
-		if stock.ReservedUntil == nil {
-			return nil, status.Errorf(codes.InvalidArgument, "reserved_until must be set")
-		}
-		products = append(products, service.UpdateProductCountWithTTL{
-			Sku:           stock.Sku,
-			Delta:         stock.Count,
-			ReservedUntil: stock.ReservedUntil.AsTime(),
+		products = append(products, service.UpdateProductCount{
+			Sku:   stock.Sku,
+			Delta: stock.Count,
 		})
 	}
 
 	reservationIds, err := s.ProductService.ReserveCount(ctx, products)
 	if err != nil {
-		return nil, fmt.Errorf("GrpcService.ReserveProductCount: %w", err)
+		return nil, fmt.Errorf("GrpcService.ReserveProduct: %w", err)
 	}
 
-	results := make([]*pb.ReserveProductCountResponse_ReservationResult, 0, len(reservationIds))
+	results := make([]*pb.ReserveProductResponse_ReservationResult, 0, len(reservationIds))
 	for sku, id := range reservationIds {
-		results = append(results, &pb.ReserveProductCountResponse_ReservationResult{
+		results = append(results, &pb.ReserveProductResponse_ReservationResult{
 			ReservationId: id,
 			Sku:           sku,
 		})
 	}
 
-	return &pb.ReserveProductCountResponse{Results: results}, nil
+	return &pb.ReserveProductResponse{Results: results}, nil
 }
 
 func (s *GrpcService) ReleaseReservation(

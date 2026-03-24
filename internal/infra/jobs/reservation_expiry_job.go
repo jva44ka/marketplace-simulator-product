@@ -12,7 +12,7 @@ import (
 )
 
 type ReservationRepository interface {
-	GetExpired(ctx context.Context) ([]reservation.Reservation, error)
+	GetExpired(ctx context.Context, cutoff time.Time) ([]reservation.Reservation, error)
 	DeleteByIds(ctx context.Context, ids []int64) error
 }
 
@@ -24,6 +24,7 @@ type ReservationExpiryJob struct {
 	reservationRepo ReservationRepository
 	productService  ProductService
 	producer        *kafka.Producer
+	reservationTTL  time.Duration
 	interval        time.Duration
 }
 
@@ -31,12 +32,14 @@ func NewReservationExpiryJob(
 	reservationRepo ReservationRepository,
 	productService ProductService,
 	producer *kafka.Producer,
+	reservationTTL time.Duration,
 	interval time.Duration,
 ) *ReservationExpiryJob {
 	return &ReservationExpiryJob{
 		reservationRepo: reservationRepo,
 		productService:  productService,
 		producer:        producer,
+		reservationTTL:  reservationTTL,
 		interval:        interval,
 	}
 }
@@ -58,7 +61,9 @@ func (j *ReservationExpiryJob) Run(ctx context.Context) {
 }
 
 func (j *ReservationExpiryJob) tick(ctx context.Context) error {
-	expired, err := j.reservationRepo.GetExpired(ctx)
+	cutoff := time.Now().Add(-j.reservationTTL)
+
+	expired, err := j.reservationRepo.GetExpired(ctx, cutoff)
 	if err != nil {
 		return fmt.Errorf("GetExpired: %w", err)
 	}

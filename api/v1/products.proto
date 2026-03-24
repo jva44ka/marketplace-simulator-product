@@ -3,7 +3,6 @@ syntax = "proto3";
 package products;
 
 import "google/api/annotations.proto";
-import "google/protobuf/timestamp.proto";
 import "protoc-gen-openapiv2/options/annotations.proto";
 
 option go_package = "ozon-simulator-go-products/api/v1/proto;products";
@@ -53,9 +52,9 @@ service Products {
     };
   }
 
-  rpc ReserveProductCount (ReserveProductCountRequest) returns (ReserveProductCountResponse){
+  rpc ReserveProduct (ReserveProductRequest) returns (ReserveProductResponse){
     option (google.api.http) = {
-      post: "/v1/products/reserve-count",
+      post: "/v1/products/reserve",
       body: "*"
     };
   }
@@ -97,17 +96,16 @@ message IncreaseProductCountRequest {
 
 message IncreaseProductCountResponse {}
 
-message ReserveProductCountRequest {
+message ReserveProductRequest {
   repeated ProductCountBatch products = 1;
 
   message ProductCountBatch {
     uint64 sku = 1;
     uint32 count = 2;
-    google.protobuf.Timestamp reserved_until = 3;
   }
 }
 
-message ReserveProductCountResponse {
+message ReserveProductResponse {
   repeated ReservationResult results = 1;
 
   message ReservationResult {

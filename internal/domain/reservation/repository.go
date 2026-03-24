@@ -9,10 +9,10 @@ import (
 )
 
 type Reservation struct {
-	Id            int64
-	Sku           uint64
-	Count         uint32
-	ReservedUntil time.Time
+	Id        int64
+	Sku       uint64
+	Count     uint32
+	CreatedAt time.Time
 }
 
 type Metrics interface {
@@ -28,14 +28,14 @@ func NewPgxReservationRepository(pool *pgxpool.Pool, metrics Metrics) *PgxReserv
 	return &PgxReservationRepository{pool: pool, metrics: metrics}
 }
 
-func (r *PgxReservationRepository) Insert(ctx context.Context, sku uint64, count uint32, reservedUntil time.Time) (int64, error) {
+func (r *PgxReservationRepository) Insert(ctx context.Context, sku uint64, count uint32) (int64, error) {
 	const query = `
-INSERT INTO reservations (sku, count, reserved_until)
-VALUES ($1, $2, $3)
+INSERT INTO reservations (sku, count)
+VALUES ($1, $2)
 RETURNING id`
 
 	var id int64
-	err := r.pool.QueryRow(ctx, query, int64(sku), int32(count), reservedUntil).Scan(&id)
+	err := r.pool.QueryRow(ctx, query, int64(sku), int32(count)).Scan(&id)
 	if err != nil {
 		r.metrics.ReportRequest("InsertReservation", "error")
 		return 0, fmt.Errorf("PgxReservationRepository.Insert: %w", err)
@@ -47,7 +47,7 @@ RETURNING id`
 
 func (r *PgxReservationRepository) GetByIds(ctx context.Context, ids []int64) ([]Reservation, error) {
 	const query = `
-SELECT id, sku, count, reserved_until
+SELECT id, sku, count, created_at
 FROM reservations
 WHERE id = ANY($1)`
 
@@ -63,7 +63,7 @@ WHERE id = ANY($1)`
 		var rv Reservation
 		var sku int64
 		var count int32
-		if err = rows.Scan(&rv.Id, &sku, &count, &rv.ReservedUntil); err != nil {
+		if err = rows.Scan(&rv.Id, &sku, &count, &rv.CreatedAt); err != nil {
 			r.metrics.ReportRequest("GetReservationsByIds", "error")
 			return nil, fmt.Errorf("PgxReservationRepository.GetByIds: %w", err)
 		}
@@ -89,13 +89,13 @@ func (r *PgxReservationRepository) DeleteByIds(ctx context.Context, ids []int64)
 	return nil
 }
 
-func (r *PgxReservationRepository) GetExpired(ctx context.Context) ([]Reservation, error) {
+func (r *PgxReservationRepository) GetExpired(ctx context.Context, cutoff time.Time) ([]Reservation, error) {
 	const query = `
-SELECT id, sku, count, reserved_until
+SELECT id, sku, count, created_at
 FROM reservations
-WHERE reserved_until < NOW()`
+WHERE created_at < $1`
 
-	rows, err := r.pool.Query(ctx, query)
+	rows, err := r.pool.Query(ctx, query, cutoff)
 	if err != nil {
 		r.metrics.ReportRequest("GetExpiredReservations", "error")
 		return nil, fmt.Errorf("PgxReservationRepository.GetExpired: %w", err)
@@ -107,7 +107,7 @@ WHERE reserved_until < NOW()`
 		var rv Reservation
 		var sku int64
 		var count int32
-		if err = rows.Scan(&rv.Id, &sku, &count, &rv.ReservedUntil); err != nil {
+		if err = rows.Scan(&rv.Id, &sku, &count, &rv.CreatedAt); err != nil {
 			r.metrics.ReportRequest("GetExpiredReservations", "error")
 			return nil, fmt.Errorf("PgxReservationRepository.GetExpired: %w", err)
 		}

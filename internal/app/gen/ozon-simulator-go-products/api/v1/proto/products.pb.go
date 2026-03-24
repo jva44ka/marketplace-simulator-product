@@ -11,7 +11,6 @@ import (
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
-	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -216,27 +215,27 @@ func (*IncreaseProductCountResponse) Descriptor() ([]byte, []int) {
 	return file_api_v1_products_proto_rawDescGZIP(), []int{3}
 }
 
-type ReserveProductCountRequest struct {
-	state         protoimpl.MessageState                          `protogen:"open.v1"`
-	Products      []*ReserveProductCountRequest_ProductCountBatch `protobuf:"bytes,1,rep,name=products,proto3" json:"products,omitempty"`
+type ReserveProductRequest struct {
+	state         protoimpl.MessageState                     `protogen:"open.v1"`
+	Products      []*ReserveProductRequest_ProductCountBatch `protobuf:"bytes,1,rep,name=products,proto3" json:"products,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ReserveProductCountRequest) Reset() {
-	*x = ReserveProductCountRequest{}
+func (x *ReserveProductRequest) Reset() {
+	*x = ReserveProductRequest{}
 	mi := &file_api_v1_products_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ReserveProductCountRequest) String() string {
+func (x *ReserveProductRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ReserveProductCountRequest) ProtoMessage() {}
+func (*ReserveProductRequest) ProtoMessage() {}
 
-func (x *ReserveProductCountRequest) ProtoReflect() protoreflect.Message {
+func (x *ReserveProductRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_api_v1_products_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -248,39 +247,39 @@ func (x *ReserveProductCountRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ReserveProductCountRequest.ProtoReflect.Descriptor instead.
-func (*ReserveProductCountRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use ReserveProductRequest.ProtoReflect.Descriptor instead.
+func (*ReserveProductRequest) Descriptor() ([]byte, []int) {
 	return file_api_v1_products_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *ReserveProductCountRequest) GetProducts() []*ReserveProductCountRequest_ProductCountBatch {
+func (x *ReserveProductRequest) GetProducts() []*ReserveProductRequest_ProductCountBatch {
 	if x != nil {
 		return x.Products
 	}
 	return nil
 }
 
-type ReserveProductCountResponse struct {
-	state         protoimpl.MessageState                           `protogen:"open.v1"`
-	Results       []*ReserveProductCountResponse_ReservationResult `protobuf:"bytes,1,rep,name=results,proto3" json:"results,omitempty"`
+type ReserveProductResponse struct {
+	state         protoimpl.MessageState                      `protogen:"open.v1"`
+	Results       []*ReserveProductResponse_ReservationResult `protobuf:"bytes,1,rep,name=results,proto3" json:"results,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ReserveProductCountResponse) Reset() {
-	*x = ReserveProductCountResponse{}
+func (x *ReserveProductResponse) Reset() {
+	*x = ReserveProductResponse{}
 	mi := &file_api_v1_products_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ReserveProductCountResponse) String() string {
+func (x *ReserveProductResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ReserveProductCountResponse) ProtoMessage() {}
+func (*ReserveProductResponse) ProtoMessage() {}
 
-func (x *ReserveProductCountResponse) ProtoReflect() protoreflect.Message {
+func (x *ReserveProductResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_api_v1_products_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -292,12 +291,12 @@ func (x *ReserveProductCountResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ReserveProductCountResponse.ProtoReflect.Descriptor instead.
-func (*ReserveProductCountResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use ReserveProductResponse.ProtoReflect.Descriptor instead.
+func (*ReserveProductResponse) Descriptor() ([]byte, []int) {
 	return file_api_v1_products_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *ReserveProductCountResponse) GetResults() []*ReserveProductCountResponse_ReservationResult {
+func (x *ReserveProductResponse) GetResults() []*ReserveProductResponse_ReservationResult {
 	if x != nil {
 		return x.Results
 	}
@@ -516,29 +515,28 @@ func (x *IncreaseProductCountRequest_IncreaseProductCountBatch) GetCount() uint3
 	return 0
 }
 
-type ReserveProductCountRequest_ProductCountBatch struct {
+type ReserveProductRequest_ProductCountBatch struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Sku           uint64                 `protobuf:"varint,1,opt,name=sku,proto3" json:"sku,omitempty"`
 	Count         uint32                 `protobuf:"varint,2,opt,name=count,proto3" json:"count,omitempty"`
-	ReservedUntil *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=reserved_until,json=reservedUntil,proto3" json:"reserved_until,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ReserveProductCountRequest_ProductCountBatch) Reset() {
-	*x = ReserveProductCountRequest_ProductCountBatch{}
+func (x *ReserveProductRequest_ProductCountBatch) Reset() {
+	*x = ReserveProductRequest_ProductCountBatch{}
 	mi := &file_api_v1_products_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ReserveProductCountRequest_ProductCountBatch) String() string {
+func (x *ReserveProductRequest_ProductCountBatch) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ReserveProductCountRequest_ProductCountBatch) ProtoMessage() {}
+func (*ReserveProductRequest_ProductCountBatch) ProtoMessage() {}
 
-func (x *ReserveProductCountRequest_ProductCountBatch) ProtoReflect() protoreflect.Message {
+func (x *ReserveProductRequest_ProductCountBatch) ProtoReflect() protoreflect.Message {
 	mi := &file_api_v1_products_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -550,33 +548,26 @@ func (x *ReserveProductCountRequest_ProductCountBatch) ProtoReflect() protorefle
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ReserveProductCountRequest_ProductCountBatch.ProtoReflect.Descriptor instead.
-func (*ReserveProductCountRequest_ProductCountBatch) Descriptor() ([]byte, []int) {
+// Deprecated: Use ReserveProductRequest_ProductCountBatch.ProtoReflect.Descriptor instead.
+func (*ReserveProductRequest_ProductCountBatch) Descriptor() ([]byte, []int) {
 	return file_api_v1_products_proto_rawDescGZIP(), []int{4, 0}
 }
 
-func (x *ReserveProductCountRequest_ProductCountBatch) GetSku() uint64 {
+func (x *ReserveProductRequest_ProductCountBatch) GetSku() uint64 {
 	if x != nil {
 		return x.Sku
 	}
 	return 0
 }
 
-func (x *ReserveProductCountRequest_ProductCountBatch) GetCount() uint32 {
+func (x *ReserveProductRequest_ProductCountBatch) GetCount() uint32 {
 	if x != nil {
 		return x.Count
 	}
 	return 0
 }
 
-func (x *ReserveProductCountRequest_ProductCountBatch) GetReservedUntil() *timestamppb.Timestamp {
-	if x != nil {
-		return x.ReservedUntil
-	}
-	return nil
-}
-
-type ReserveProductCountResponse_ReservationResult struct {
+type ReserveProductResponse_ReservationResult struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ReservationId int64                  `protobuf:"varint,1,opt,name=reservation_id,json=reservationId,proto3" json:"reservation_id,omitempty"`
 	Sku           uint64                 `protobuf:"varint,2,opt,name=sku,proto3" json:"sku,omitempty"`
@@ -584,20 +575,20 @@ type ReserveProductCountResponse_ReservationResult struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ReserveProductCountResponse_ReservationResult) Reset() {
-	*x = ReserveProductCountResponse_ReservationResult{}
+func (x *ReserveProductResponse_ReservationResult) Reset() {
+	*x = ReserveProductResponse_ReservationResult{}
 	mi := &file_api_v1_products_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ReserveProductCountResponse_ReservationResult) String() string {
+func (x *ReserveProductResponse_ReservationResult) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ReserveProductCountResponse_ReservationResult) ProtoMessage() {}
+func (*ReserveProductResponse_ReservationResult) ProtoMessage() {}
 
-func (x *ReserveProductCountResponse_ReservationResult) ProtoReflect() protoreflect.Message {
+func (x *ReserveProductResponse_ReservationResult) ProtoReflect() protoreflect.Message {
 	mi := &file_api_v1_products_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -609,19 +600,19 @@ func (x *ReserveProductCountResponse_ReservationResult) ProtoReflect() protorefl
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ReserveProductCountResponse_ReservationResult.ProtoReflect.Descriptor instead.
-func (*ReserveProductCountResponse_ReservationResult) Descriptor() ([]byte, []int) {
+// Deprecated: Use ReserveProductResponse_ReservationResult.ProtoReflect.Descriptor instead.
+func (*ReserveProductResponse_ReservationResult) Descriptor() ([]byte, []int) {
 	return file_api_v1_products_proto_rawDescGZIP(), []int{5, 0}
 }
 
-func (x *ReserveProductCountResponse_ReservationResult) GetReservationId() int64 {
+func (x *ReserveProductResponse_ReservationResult) GetReservationId() int64 {
 	if x != nil {
 		return x.ReservationId
 	}
 	return 0
 }
 
-func (x *ReserveProductCountResponse_ReservationResult) GetSku() uint64 {
+func (x *ReserveProductResponse_ReservationResult) GetSku() uint64 {
 	if x != nil {
 		return x.Sku
 	}
@@ -632,7 +623,7 @@ var File_api_v1_products_proto protoreflect.FileDescriptor
 
 const file_api_v1_products_proto_rawDesc = "" +
 	"\n" +
-	"\x15api/v1/products.proto\x12\bproducts\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a.protoc-gen-openapiv2/options/annotations.proto\"%\n" +
+	"\x15api/v1/products.proto\x12\bproducts\x1a\x1cgoogle/api/annotations.proto\x1a.protoc-gen-openapiv2/options/annotations.proto\"%\n" +
 	"\x11GetProductRequest\x12\x10\n" +
 	"\x03sku\x18\x01 \x01(\x04R\x03sku\"f\n" +
 	"\x12GetProductResponse\x12\x10\n" +
@@ -645,15 +636,14 @@ const file_api_v1_products_proto_rawDesc = "" +
 	"\x19IncreaseProductCountBatch\x12\x10\n" +
 	"\x03sku\x18\x01 \x01(\x04R\x03sku\x12\x14\n" +
 	"\x05count\x18\x02 \x01(\rR\x05count\"\x1e\n" +
-	"\x1cIncreaseProductCountResponse\"\xf0\x01\n" +
-	"\x1aReserveProductCountRequest\x12R\n" +
-	"\bproducts\x18\x01 \x03(\v26.products.ReserveProductCountRequest.ProductCountBatchR\bproducts\x1a~\n" +
+	"\x1cIncreaseProductCountResponse\"\xa3\x01\n" +
+	"\x15ReserveProductRequest\x12M\n" +
+	"\bproducts\x18\x01 \x03(\v21.products.ReserveProductRequest.ProductCountBatchR\bproducts\x1a;\n" +
 	"\x11ProductCountBatch\x12\x10\n" +
 	"\x03sku\x18\x01 \x01(\x04R\x03sku\x12\x14\n" +
-	"\x05count\x18\x02 \x01(\rR\x05count\x12A\n" +
-	"\x0ereserved_until\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\rreservedUntil\"\xbe\x01\n" +
-	"\x1bReserveProductCountResponse\x12Q\n" +
-	"\aresults\x18\x01 \x03(\v27.products.ReserveProductCountResponse.ReservationResultR\aresults\x1aL\n" +
+	"\x05count\x18\x02 \x01(\rR\x05count\"\xb4\x01\n" +
+	"\x16ReserveProductResponse\x12L\n" +
+	"\aresults\x18\x01 \x03(\v22.products.ReserveProductResponse.ReservationResultR\aresults\x1aL\n" +
 	"\x11ReservationResult\x12%\n" +
 	"\x0ereservation_id\x18\x01 \x01(\x03R\rreservationId\x12\x10\n" +
 	"\x03sku\x18\x02 \x01(\x04R\x03sku\"D\n" +
@@ -662,12 +652,12 @@ const file_api_v1_products_proto_rawDesc = "" +
 	"\x1aReleaseReservationResponse\"D\n" +
 	"\x19ConfirmReservationRequest\x12'\n" +
 	"\x0freservation_ids\x18\x01 \x03(\x03R\x0ereservationIds\"\x1c\n" +
-	"\x1aConfirmReservationResponse2\xea\x05\n" +
+	"\x1aConfirmReservationResponse2\xd4\x05\n" +
 	"\bProducts\x12\xa3\x01\n" +
 	"\n" +
 	"GetProduct\x12\x1b.products.GetProductRequest\x1a\x1c.products.GetProductResponse\"Z\x92A=\x1a;Получение информации о продукте\x82\xd3\xe4\x93\x02\x14\x12\x12/v1/products/{sku}\x12\x8d\x01\n" +
-	"\x14IncreaseProductCount\x12%.products.IncreaseProductCountRequest\x1a&.products.IncreaseProductCountResponse\"&\x82\xd3\xe4\x93\x02 :\x01*\"\x1b/v1/products/increase-count\x12\x89\x01\n" +
-	"\x13ReserveProductCount\x12$.products.ReserveProductCountRequest\x1a%.products.ReserveProductCountResponse\"%\x82\xd3\xe4\x93\x02\x1f:\x01*\"\x1a/v1/products/reserve-count\x12\x8c\x01\n" +
+	"\x14IncreaseProductCount\x12%.products.IncreaseProductCountRequest\x1a&.products.IncreaseProductCountResponse\"&\x82\xd3\xe4\x93\x02 :\x01*\"\x1b/v1/products/increase-count\x12t\n" +
+	"\x0eReserveProduct\x12\x1f.products.ReserveProductRequest\x1a .products.ReserveProductResponse\"\x1f\x82\xd3\xe4\x93\x02\x19:\x01*\"\x14/v1/products/reserve\x12\x8c\x01\n" +
 	"\x12ReleaseReservation\x12#.products.ReleaseReservationRequest\x1a$.products.ReleaseReservationResponse\"+\x82\xd3\xe4\x93\x02%:\x01*\" /v1/products/release-reservation\x12\x8c\x01\n" +
 	"\x12ConfirmReservation\x12#.products.ConfirmReservationRequest\x1a$.products.ConfirmReservationResponse\"+\x82\xd3\xe4\x93\x02%:\x01*\" /v1/products/confirm-reservationB\x9c\x01\x92Ag\x12\x15\n" +
 	"\fProducts API2\x051.0.0*\x02\x01\x022\x10application/json:\x10application/jsonZ\x18\n" +
@@ -695,37 +685,35 @@ var file_api_v1_products_proto_goTypes = []any{
 	(*GetProductResponse)(nil),                                    // 1: products.GetProductResponse
 	(*IncreaseProductCountRequest)(nil),                           // 2: products.IncreaseProductCountRequest
 	(*IncreaseProductCountResponse)(nil),                          // 3: products.IncreaseProductCountResponse
-	(*ReserveProductCountRequest)(nil),                            // 4: products.ReserveProductCountRequest
-	(*ReserveProductCountResponse)(nil),                           // 5: products.ReserveProductCountResponse
+	(*ReserveProductRequest)(nil),                                 // 4: products.ReserveProductRequest
+	(*ReserveProductResponse)(nil),                                // 5: products.ReserveProductResponse
 	(*ReleaseReservationRequest)(nil),                             // 6: products.ReleaseReservationRequest
 	(*ReleaseReservationResponse)(nil),                            // 7: products.ReleaseReservationResponse
 	(*ConfirmReservationRequest)(nil),                             // 8: products.ConfirmReservationRequest
 	(*ConfirmReservationResponse)(nil),                            // 9: products.ConfirmReservationResponse
 	(*IncreaseProductCountRequest_IncreaseProductCountBatch)(nil), // 10: products.IncreaseProductCountRequest.IncreaseProductCountBatch
-	(*ReserveProductCountRequest_ProductCountBatch)(nil),          // 11: products.ReserveProductCountRequest.ProductCountBatch
-	(*ReserveProductCountResponse_ReservationResult)(nil),         // 12: products.ReserveProductCountResponse.ReservationResult
-	(*timestamppb.Timestamp)(nil),                                 // 13: google.protobuf.Timestamp
+	(*ReserveProductRequest_ProductCountBatch)(nil),               // 11: products.ReserveProductRequest.ProductCountBatch
+	(*ReserveProductResponse_ReservationResult)(nil),              // 12: products.ReserveProductResponse.ReservationResult
 }
 var file_api_v1_products_proto_depIdxs = []int32{
 	10, // 0: products.IncreaseProductCountRequest.products:type_name -> products.IncreaseProductCountRequest.IncreaseProductCountBatch
-	11, // 1: products.ReserveProductCountRequest.products:type_name -> products.ReserveProductCountRequest.ProductCountBatch
-	12, // 2: products.ReserveProductCountResponse.results:type_name -> products.ReserveProductCountResponse.ReservationResult
-	13, // 3: products.ReserveProductCountRequest.ProductCountBatch.reserved_until:type_name -> google.protobuf.Timestamp
-	0,  // 4: products.Products.GetProduct:input_type -> products.GetProductRequest
-	2,  // 5: products.Products.IncreaseProductCount:input_type -> products.IncreaseProductCountRequest
-	4,  // 6: products.Products.ReserveProductCount:input_type -> products.ReserveProductCountRequest
-	6,  // 7: products.Products.ReleaseReservation:input_type -> products.ReleaseReservationRequest
-	8,  // 8: products.Products.ConfirmReservation:input_type -> products.ConfirmReservationRequest
-	1,  // 9: products.Products.GetProduct:output_type -> products.GetProductResponse
-	3,  // 10: products.Products.IncreaseProductCount:output_type -> products.IncreaseProductCountResponse
-	5,  // 11: products.Products.ReserveProductCount:output_type -> products.ReserveProductCountResponse
-	7,  // 12: products.Products.ReleaseReservation:output_type -> products.ReleaseReservationResponse
-	9,  // 13: products.Products.ConfirmReservation:output_type -> products.ConfirmReservationResponse
-	9,  // [9:14] is the sub-list for method output_type
-	4,  // [4:9] is the sub-list for method input_type
-	4,  // [4:4] is the sub-list for extension type_name
-	4,  // [4:4] is the sub-list for extension extendee
-	0,  // [0:4] is the sub-list for field type_name
+	11, // 1: products.ReserveProductRequest.products:type_name -> products.ReserveProductRequest.ProductCountBatch
+	12, // 2: products.ReserveProductResponse.results:type_name -> products.ReserveProductResponse.ReservationResult
+	0,  // 3: products.Products.GetProduct:input_type -> products.GetProductRequest
+	2,  // 4: products.Products.IncreaseProductCount:input_type -> products.IncreaseProductCountRequest
+	4,  // 5: products.Products.ReserveProduct:input_type -> products.ReserveProductRequest
+	6,  // 6: products.Products.ReleaseReservation:input_type -> products.ReleaseReservationRequest
+	8,  // 7: products.Products.ConfirmReservation:input_type -> products.ConfirmReservationRequest
+	1,  // 8: products.Products.GetProduct:output_type -> products.GetProductResponse
+	3,  // 9: products.Products.IncreaseProductCount:output_type -> products.IncreaseProductCountResponse
+	5,  // 10: products.Products.ReserveProduct:output_type -> products.ReserveProductResponse
+	7,  // 11: products.Products.ReleaseReservation:output_type -> products.ReleaseReservationResponse
+	9,  // 12: products.Products.ConfirmReservation:output_type -> products.ConfirmReservationResponse
+	8,  // [8:13] is the sub-list for method output_type
+	3,  // [3:8] is the sub-list for method input_type
+	3,  // [3:3] is the sub-list for extension type_name
+	3,  // [3:3] is the sub-list for extension extendee
+	0,  // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_api_v1_products_proto_init() }

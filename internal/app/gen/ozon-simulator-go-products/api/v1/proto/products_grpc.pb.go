@@ -21,7 +21,7 @@ const _ = grpc.SupportPackageIsVersion9
 const (
 	Products_GetProduct_FullMethodName           = "/products.Products/GetProduct"
 	Products_IncreaseProductCount_FullMethodName = "/products.Products/IncreaseProductCount"
-	Products_ReserveProductCount_FullMethodName  = "/products.Products/ReserveProductCount"
+	Products_ReserveProduct_FullMethodName       = "/products.Products/ReserveProduct"
 	Products_ReleaseReservation_FullMethodName   = "/products.Products/ReleaseReservation"
 	Products_ConfirmReservation_FullMethodName   = "/products.Products/ConfirmReservation"
 )
@@ -32,7 +32,7 @@ const (
 type ProductsClient interface {
 	GetProduct(ctx context.Context, in *GetProductRequest, opts ...grpc.CallOption) (*GetProductResponse, error)
 	IncreaseProductCount(ctx context.Context, in *IncreaseProductCountRequest, opts ...grpc.CallOption) (*IncreaseProductCountResponse, error)
-	ReserveProductCount(ctx context.Context, in *ReserveProductCountRequest, opts ...grpc.CallOption) (*ReserveProductCountResponse, error)
+	ReserveProduct(ctx context.Context, in *ReserveProductRequest, opts ...grpc.CallOption) (*ReserveProductResponse, error)
 	ReleaseReservation(ctx context.Context, in *ReleaseReservationRequest, opts ...grpc.CallOption) (*ReleaseReservationResponse, error)
 	ConfirmReservation(ctx context.Context, in *ConfirmReservationRequest, opts ...grpc.CallOption) (*ConfirmReservationResponse, error)
 }
@@ -65,10 +65,10 @@ func (c *productsClient) IncreaseProductCount(ctx context.Context, in *IncreaseP
 	return out, nil
 }
 
-func (c *productsClient) ReserveProductCount(ctx context.Context, in *ReserveProductCountRequest, opts ...grpc.CallOption) (*ReserveProductCountResponse, error) {
+func (c *productsClient) ReserveProduct(ctx context.Context, in *ReserveProductRequest, opts ...grpc.CallOption) (*ReserveProductResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(ReserveProductCountResponse)
-	err := c.cc.Invoke(ctx, Products_ReserveProductCount_FullMethodName, in, out, cOpts...)
+	out := new(ReserveProductResponse)
+	err := c.cc.Invoke(ctx, Products_ReserveProduct_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -101,7 +101,7 @@ func (c *productsClient) ConfirmReservation(ctx context.Context, in *ConfirmRese
 type ProductsServer interface {
 	GetProduct(context.Context, *GetProductRequest) (*GetProductResponse, error)
 	IncreaseProductCount(context.Context, *IncreaseProductCountRequest) (*IncreaseProductCountResponse, error)
-	ReserveProductCount(context.Context, *ReserveProductCountRequest) (*ReserveProductCountResponse, error)
+	ReserveProduct(context.Context, *ReserveProductRequest) (*ReserveProductResponse, error)
 	ReleaseReservation(context.Context, *ReleaseReservationRequest) (*ReleaseReservationResponse, error)
 	ConfirmReservation(context.Context, *ConfirmReservationRequest) (*ConfirmReservationResponse, error)
 	mustEmbedUnimplementedProductsServer()
@@ -120,8 +120,8 @@ func (UnimplementedProductsServer) GetProduct(context.Context, *GetProductReques
 func (UnimplementedProductsServer) IncreaseProductCount(context.Context, *IncreaseProductCountRequest) (*IncreaseProductCountResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method IncreaseProductCount not implemented")
 }
-func (UnimplementedProductsServer) ReserveProductCount(context.Context, *ReserveProductCountRequest) (*ReserveProductCountResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method ReserveProductCount not implemented")
+func (UnimplementedProductsServer) ReserveProduct(context.Context, *ReserveProductRequest) (*ReserveProductResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ReserveProduct not implemented")
 }
 func (UnimplementedProductsServer) ReleaseReservation(context.Context, *ReleaseReservationRequest) (*ReleaseReservationResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ReleaseReservation not implemented")
@@ -186,20 +186,20 @@ func _Products_IncreaseProductCount_Handler(srv interface{}, ctx context.Context
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Products_ReserveProductCount_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ReserveProductCountRequest)
+func _Products_ReserveProduct_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ReserveProductRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ProductsServer).ReserveProductCount(ctx, in)
+		return srv.(ProductsServer).ReserveProduct(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: Products_ReserveProductCount_FullMethodName,
+		FullMethod: Products_ReserveProduct_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ProductsServer).ReserveProductCount(ctx, req.(*ReserveProductCountRequest))
+		return srv.(ProductsServer).ReserveProduct(ctx, req.(*ReserveProductRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -256,8 +256,8 @@ var Products_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _Products_IncreaseProductCount_Handler,
 		},
 		{
-			MethodName: "ReserveProductCount",
-			Handler:    _Products_ReserveProductCount_Handler,
+			MethodName: "ReserveProduct",
+			Handler:    _Products_ReserveProduct_Handler,
 		},
 		{
 			MethodName: "ReleaseReservation",
