@@ -6,6 +6,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jva44ka/ozon-simulator-go-products/internal/infra/postgres"
 )
 
 type RepositoryMetrics interface {
@@ -13,13 +14,13 @@ type RepositoryMetrics interface {
 	ReportOptimisticLockFailure()
 }
 
-type PgxRepository struct {
+type ProductRepository struct {
 	pool    *pgxpool.Pool
 	metrics RepositoryMetrics
 }
 
-func NewPgxRepository(pool *pgxpool.Pool, metrics RepositoryMetrics) *PgxRepository {
-	return &PgxRepository{pool: pool, metrics: metrics}
+func NewPgxRepository(pool *pgxpool.Pool, metrics RepositoryMetrics) *ProductRepository {
+	return &ProductRepository{pool: pool, metrics: metrics}
 }
 
 type productRow struct {
@@ -30,7 +31,19 @@ type productRow struct {
 	xmin  uint32
 }
 
-func (r *PgxRepository) GetProductBySku(ctx context.Context, sku uint64) (*Product, error) {
+// rowQuerier — минимальный интерфейс для SELECT-запросов.
+type rowQuerier interface {
+	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
+}
+
+func (r *ProductRepository) querier(ctx context.Context) rowQuerier {
+	if tx, ok := postgres.TxFromContext(ctx); ok {
+		return tx
+	}
+	return r.pool
+}
+
+func (r *ProductRepository) GetProductBySku(ctx context.Context, sku uint64) (*Product, error) {
 	products, err := r.GetProductsBySkus(ctx, []uint64{sku})
 	if err != nil {
 		return nil, err
@@ -41,16 +54,16 @@ func (r *PgxRepository) GetProductBySku(ctx context.Context, sku uint64) (*Produ
 	return products[0], nil
 }
 
-func (r *PgxRepository) GetProductsBySkus(ctx context.Context, skus []uint64) ([]*Product, error) {
+func (r *ProductRepository) GetProductsBySkus(ctx context.Context, skus []uint64) ([]*Product, error) {
 	const query = `
 SELECT sku, price, name, count, xmin
 FROM products
 WHERE sku = ANY($1);`
 
-	rows, err := r.pool.Query(ctx, query, skus)
+	rows, err := r.querier(ctx).Query(ctx, query, skus)
 	if err != nil {
 		r.metrics.ReportRequest("GetProductsBySkus", "error")
-		return nil, fmt.Errorf("PgxRepository.GetProductsBySkus: %w", err)
+		return nil, fmt.Errorf("ProductRepository.GetProductsBySkus: %w", err)
 	}
 	defer rows.Close()
 
@@ -59,7 +72,7 @@ WHERE sku = ANY($1);`
 		var row productRow
 		if err = rows.Scan(&row.sku, &row.price, &row.name, &row.count, &row.xmin); err != nil {
 			r.metrics.ReportRequest("GetProductsBySkus", "error")
-			return nil, fmt.Errorf("PgxRepository.GetProductsBySkus: %w", err)
+			return nil, fmt.Errorf("ProductRepository.GetProductsBySkus: %w", err)
 		}
 		products = append(products, &Product{
 			Sku:           uint64(row.sku),
@@ -74,7 +87,7 @@ WHERE sku = ANY($1);`
 	return products, nil
 }
 
-func (r *PgxRepository) UpdateCount(ctx context.Context, products []*Product) error {
+func (r *ProductRepository) UpdateCount(ctx context.Context, products []*Product) error {
 	const query = `
 UPDATE products
 SET count = $3
@@ -85,14 +98,14 @@ WHERE sku = $1 AND xmin = $2;`
 	})
 }
 
-func (r *PgxRepository) execBatch(
+func (r *ProductRepository) execBatch(
 	ctx context.Context,
 	method string,
 	products []*Product,
 	query string,
 	args func(*Product) []any,
 ) error {
-	return pgx.BeginTxFunc(ctx, r.pool, pgx.TxOptions{}, func(tx pgx.Tx) error {
+	do := func(tx pgx.Tx) error {
 		batch := &pgx.Batch{}
 		for _, p := range products {
 			batch.Queue(query, args(p)...)
@@ -105,7 +118,7 @@ func (r *PgxRepository) execBatch(
 		for range products {
 			tag, err := results.Exec()
 			if err != nil {
-				return fmt.Errorf("PgxRepository.%s: %w", method, err)
+				return fmt.Errorf("ProductRepository.%s: %w", method, err)
 			}
 			affected += tag.RowsAffected()
 		}
@@ -113,10 +126,15 @@ func (r *PgxRepository) execBatch(
 		if affected != int64(len(products)) {
 			r.metrics.ReportRequest(method, "error")
 			r.metrics.ReportOptimisticLockFailure()
-			return fmt.Errorf("PgxRepository.%s: optimistic lock failed, retry required", method)
+			return fmt.Errorf("ProductRepository.%s: optimistic lock failed, retry required", method)
 		}
 
 		r.metrics.ReportRequest(method, "success")
 		return nil
-	})
+	}
+
+	if tx, ok := postgres.TxFromContext(ctx); ok {
+		return do(tx)
+	}
+	return pgx.BeginTxFunc(ctx, r.pool, pgx.TxOptions{}, do)
 }
