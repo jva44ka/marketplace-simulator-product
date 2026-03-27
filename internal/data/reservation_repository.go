@@ -1,4 +1,4 @@
-package reservation
+package data
 
 import (
 	"context"
@@ -8,24 +8,25 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jva44ka/ozon-simulator-go-products/internal/domain/reservation"
 )
 
-type Metrics interface {
+type ReservationMetrics interface {
 	ReportRequest(method, status string)
 }
 
-type PgxRepository struct {
+type ReservationPgxRepository struct {
 	pool    *pgxpool.Pool
 	tx      pgx.Tx
-	metrics Metrics
+	metrics ReservationMetrics
 }
 
-func NewPgxRepository(pool *pgxpool.Pool, metrics Metrics) *PgxRepository {
-	return &PgxRepository{pool: pool, metrics: metrics}
+func NewReservationPgxRepository(pool *pgxpool.Pool, metrics ReservationMetrics) *ReservationPgxRepository {
+	return &ReservationPgxRepository{pool: pool, metrics: metrics}
 }
 
-func NewTxPgxRepository(tx pgx.Tx, metrics Metrics) *PgxRepository {
-	return &PgxRepository{tx: tx, metrics: metrics}
+func NewReservationTxPgxRepository(tx pgx.Tx, metrics ReservationMetrics) *ReservationPgxRepository {
+	return &ReservationPgxRepository{tx: tx, metrics: metrics}
 }
 
 type dbConn interface {
@@ -34,26 +35,26 @@ type dbConn interface {
 	Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error)
 }
 
-func (r *PgxRepository) conn() dbConn {
+func (r *ReservationPgxRepository) conn() dbConn {
 	if r.tx != nil {
 		return r.tx
 	}
 	return r.pool
 }
 
-func (r *PgxRepository) Insert(ctx context.Context, sku uint64, count uint32) (Reservation, error) {
+func (r *ReservationPgxRepository) Insert(ctx context.Context, sku uint64, count uint32) (reservation.Reservation, error) {
 	const query = `
 INSERT INTO reservations (sku, count)
 VALUES ($1, $2)
 RETURNING id, sku, count, created_at`
 
-	var rv Reservation
+	var rv reservation.Reservation
 	var skuInt int64
 	var countInt int32
 	err := r.conn().QueryRow(ctx, query, int64(sku), int32(count)).Scan(&rv.Id, &skuInt, &countInt, &rv.CreatedAt)
 	if err != nil {
 		r.metrics.ReportRequest("InsertReservation", "error")
-		return Reservation{}, fmt.Errorf("PgxRepository.Insert: %w", err)
+		return reservation.Reservation{}, fmt.Errorf("PgxRepository.Insert: %w", err)
 	}
 	rv.Sku = uint64(skuInt)
 	rv.Count = uint32(countInt)
@@ -62,7 +63,7 @@ RETURNING id, sku, count, created_at`
 	return rv, nil
 }
 
-func (r *PgxRepository) GetByIds(ctx context.Context, ids []int64) ([]Reservation, error) {
+func (r *ReservationPgxRepository) GetByIds(ctx context.Context, ids []int64) ([]reservation.Reservation, error) {
 	const query = `
 SELECT id, sku, count, created_at
 FROM reservations
@@ -75,9 +76,9 @@ WHERE id = ANY($1)`
 	}
 	defer rows.Close()
 
-	var result []Reservation
+	var result []reservation.Reservation
 	for rows.Next() {
-		var rv Reservation
+		var rv reservation.Reservation
 		var sku int64
 		var count int32
 		if err = rows.Scan(&rv.Id, &sku, &count, &rv.CreatedAt); err != nil {
@@ -93,7 +94,7 @@ WHERE id = ANY($1)`
 	return result, nil
 }
 
-func (r *PgxRepository) DeleteByIds(ctx context.Context, ids []int64) error {
+func (r *ReservationPgxRepository) DeleteByIds(ctx context.Context, ids []int64) error {
 	const query = `DELETE FROM reservations WHERE id = ANY($1)`
 
 	_, err := r.conn().Exec(ctx, query, ids)
@@ -106,7 +107,7 @@ func (r *PgxRepository) DeleteByIds(ctx context.Context, ids []int64) error {
 	return nil
 }
 
-func (r *PgxRepository) GetExpired(ctx context.Context, cutoff time.Time) ([]Reservation, error) {
+func (r *ReservationPgxRepository) GetExpired(ctx context.Context, cutoff time.Time) ([]reservation.Reservation, error) {
 	const query = `
 SELECT id, sku, count, created_at
 FROM reservations
@@ -119,9 +120,9 @@ WHERE created_at < $1`
 	}
 	defer rows.Close()
 
-	var result []Reservation
+	var result []reservation.Reservation
 	for rows.Next() {
-		var rv Reservation
+		var rv reservation.Reservation
 		var sku int64
 		var count int32
 		if err = rows.Scan(&rv.Id, &sku, &count, &rv.CreatedAt); err != nil {

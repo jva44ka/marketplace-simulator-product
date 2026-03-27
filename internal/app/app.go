@@ -12,13 +12,12 @@ import (
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jva44ka/ozon-simulator-go-products/internal/app/middleware"
+	"github.com/jva44ka/ozon-simulator-go-products/internal/data"
 	"github.com/jva44ka/ozon-simulator-go-products/internal/domain/product"
-	"github.com/jva44ka/ozon-simulator-go-products/internal/domain/reservation"
 	"github.com/jva44ka/ozon-simulator-go-products/internal/infra/config"
 	"github.com/jva44ka/ozon-simulator-go-products/internal/infra/jobs"
 	"github.com/jva44ka/ozon-simulator-go-products/internal/infra/kafka"
 	"github.com/jva44ka/ozon-simulator-go-products/internal/infra/metrics"
-	"github.com/jva44ka/ozon-simulator-go-products/internal/infra/postgres"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -59,11 +58,11 @@ func NewApp(cfg *config.Config) (*App, error) {
 	}
 
 	dbMetrics := metrics.NewDbMetrics()
-	productRepo := product.NewPgxRepository(pool, dbMetrics)
-	reservationRepo := reservation.NewPgxRepository(pool, dbMetrics)
+	productRepo := data.NewPgxRepository(pool, dbMetrics)
+	reservationRepo := data.NewPgxRepository(pool, dbMetrics)
 	producer := kafka.NewProducer(cfg.Kafka.Brokers, cfg.Kafka.ReservationExpiredTopic)
 
-	transactor := postgres.NewTransactor(pool, dbMetrics, dbMetrics)
+	transactor := data.NewTransactor(pool, dbMetrics, dbMetrics)
 	domainService := product.NewService(productRepo, reservationRepo, transactor)
 	expiryJob := jobs.NewReservationExpiryJob(reservationRepo, domainService, producer, reservationTTL, jobInterval)
 

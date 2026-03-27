@@ -7,26 +7,20 @@ import (
 	"slices"
 
 	domainErrors "github.com/jva44ka/ozon-simulator-go-products/internal/domain/errors"
+	"github.com/jva44ka/ozon-simulator-go-products/internal/domain/models"
 	"github.com/jva44ka/ozon-simulator-go-products/internal/domain/reservation"
 )
 
 type ProductRepository interface {
-	GetProductBySku(ctx context.Context, sku uint64) (*Product, error)
-	GetProductsBySkus(ctx context.Context, skus []uint64) ([]*Product, error)
-	UpdateCount(ctx context.Context, products []*Product) error
+	GetProductBySku(ctx context.Context, sku uint64) (*models.Product, error)
+	GetProductsBySkus(ctx context.Context, skus []uint64) ([]*models.Product, error)
+	UpdateCount(ctx context.Context, products []*models.Product) error
 }
 
 type ReservationRepository interface {
 	Insert(ctx context.Context, sku uint64, count uint32) (reservation.Reservation, error)
 	GetByIds(ctx context.Context, ids []int64) ([]reservation.Reservation, error)
 	DeleteByIds(ctx context.Context, ids []int64) error
-}
-
-// Repositories — набор репозиториев, привязанных к транзакции.
-// Передаётся в колбэк Transactor.InTransaction.
-type Repositories struct {
-	Products     ProductRepository
-	Reservations ReservationRepository
 }
 
 type Transactor interface {
@@ -52,7 +46,7 @@ type UpdateCount struct {
 	Delta uint32
 }
 
-func (s *Service) GetProductBySku(ctx context.Context, sku uint64) (*Product, error) {
+func (s *Service) GetProductBySku(ctx context.Context, sku uint64) (*models.Product, error) {
 	product, err := s.productRepository.GetProductBySku(ctx, sku)
 	if err != nil {
 		return nil, fmt.Errorf("productRepository.GetProductBySku: %w", err)
@@ -149,7 +143,7 @@ func (s *Service) ReleaseReservation(ctx context.Context, products []UpdateCount
 	return s.productRepository.UpdateCount(ctx, slices.Collect(maps.Values(existingProductsMap)))
 }
 
-func validateProductsExist(ctx context.Context, products []UpdateCount, repo ProductRepository) (map[uint64]*Product, error) {
+func validateProductsExist(ctx context.Context, products []UpdateCount, repo ProductRepository) (map[uint64]*models.Product, error) {
 	skus := make([]uint64, 0, len(products))
 	for _, product := range products {
 		skus = append(skus, product.Sku)
@@ -160,7 +154,7 @@ func validateProductsExist(ctx context.Context, products []UpdateCount, repo Pro
 		return nil, fmt.Errorf("ProductService.validateProductsExist: %w", err)
 	}
 
-	existingProductsMap := make(map[uint64]*Product, len(existingProducts))
+	existingProductsMap := make(map[uint64]*models.Product, len(existingProducts))
 	for _, existingProduct := range existingProducts {
 		existingProductsMap[existingProduct.Sku] = existingProduct
 	}

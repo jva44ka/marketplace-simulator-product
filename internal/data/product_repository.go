@@ -1,4 +1,4 @@
-package product
+package data
 
 import (
 	"context"
@@ -6,6 +6,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jva44ka/ozon-simulator-go-products/internal/domain/models"
 )
 
 type RepositoryMetrics interface {
@@ -19,11 +20,11 @@ type ProductPgxRepository struct {
 	metrics RepositoryMetrics
 }
 
-func NewPgxRepository(pool *pgxpool.Pool, metrics RepositoryMetrics) *ProductPgxRepository {
+func NewProductPgxRepository(pool *pgxpool.Pool, metrics RepositoryMetrics) *ProductPgxRepository {
 	return &ProductPgxRepository{pool: pool, metrics: metrics}
 }
 
-func NewTxPgxRepository(tx pgx.Tx, metrics RepositoryMetrics) *ProductPgxRepository {
+func NewProductTxPgxRepository(tx pgx.Tx, metrics RepositoryMetrics) *ProductPgxRepository {
 	return &ProductPgxRepository{tx: tx, metrics: metrics}
 }
 
@@ -46,7 +47,7 @@ func (r *ProductPgxRepository) conn() rowQuerier {
 	return r.pool
 }
 
-func (r *ProductPgxRepository) GetProductBySku(ctx context.Context, sku uint64) (*Product, error) {
+func (r *ProductPgxRepository) GetProductBySku(ctx context.Context, sku uint64) (*models.Product, error) {
 	products, err := r.GetProductsBySkus(ctx, []uint64{sku})
 	if err != nil {
 		return nil, err
@@ -57,7 +58,7 @@ func (r *ProductPgxRepository) GetProductBySku(ctx context.Context, sku uint64) 
 	return products[0], nil
 }
 
-func (r *ProductPgxRepository) GetProductsBySkus(ctx context.Context, skus []uint64) ([]*Product, error) {
+func (r *ProductPgxRepository) GetProductsBySkus(ctx context.Context, skus []uint64) ([]*models.Product, error) {
 	const query = `
 SELECT sku, price, name, count, xmin
 FROM products
@@ -70,14 +71,14 @@ WHERE sku = ANY($1);`
 	}
 	defer rows.Close()
 
-	products := make([]*Product, 0, len(skus))
+	products := make([]*models.Product, 0, len(skus))
 	for rows.Next() {
 		var row productRow
 		if err = rows.Scan(&row.sku, &row.price, &row.name, &row.count, &row.xmin); err != nil {
 			r.metrics.ReportRequest("GetProductsBySkus", "error")
 			return nil, fmt.Errorf("ProductRepository.GetProductsBySkus: %w", err)
 		}
-		products = append(products, &Product{
+		products = append(products, &models.Product{
 			Sku:           uint64(row.sku),
 			Price:         row.price,
 			Name:          row.name,
@@ -90,13 +91,13 @@ WHERE sku = ANY($1);`
 	return products, nil
 }
 
-func (r *ProductPgxRepository) UpdateCount(ctx context.Context, products []*Product) error {
+func (r *ProductPgxRepository) UpdateCount(ctx context.Context, products []*models.Product) error {
 	const query = `
 UPDATE products
 SET count = $3
 WHERE sku = $1 AND xmin = $2;`
 
-	return r.execBatch(ctx, "UpdateCount", products, query, func(p *Product) []any {
+	return r.execBatch(ctx, "UpdateCount", products, query, func(p *models.Product) []any {
 		return []any{int64(p.Sku), p.TransactionId, p.Count}
 	})
 }
@@ -104,9 +105,9 @@ WHERE sku = $1 AND xmin = $2;`
 func (r *ProductPgxRepository) execBatch(
 	ctx context.Context,
 	method string,
-	products []*Product,
+	products []*models.Product,
 	query string,
-	args func(*Product) []any,
+	args func(*models.Product) []any,
 ) error {
 	do := func(tx pgx.Tx) error {
 		batch := &pgx.Batch{}
