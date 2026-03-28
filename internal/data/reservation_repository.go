@@ -6,7 +6,8 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jva44ka/ozon-simulator-go-products/internal/domain"
 	"github.com/jva44ka/ozon-simulator-go-products/internal/domain/models"
 )
 
@@ -14,22 +15,27 @@ type ReservationMetrics interface {
 	ReportRequest(method, status string)
 }
 
+// ReservationPgxRepository — read-only, requires pool
 type ReservationPgxRepository struct {
-	connection Connection
-	metrics    ReservationMetrics
+	pool    *pgxpool.Pool
+	metrics ReservationMetrics
 }
 
-func NewReservationPgxRepository(connection Connection, metrics ReservationMetrics) *ReservationPgxRepository {
-	return &ReservationPgxRepository{connection: connection, metrics: metrics}
+func NewReservationPgxRepository(pool *pgxpool.Pool, metrics ReservationMetrics) *ReservationPgxRepository {
+	return &ReservationPgxRepository{pool: pool, metrics: metrics}
 }
 
-type Connection interface {
-	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
-	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
-	Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error)
+func (r *ReservationPgxRepository) WithTx(tx pgx.Tx) domain.ReservationWriteRepository {
+	return &ReservationPgxTxRepository{tx: tx, metrics: r.metrics}
 }
 
-func (r *ReservationPgxRepository) Insert(ctx context.Context, sku uint64, count uint32) (models.Reservation, error) {
+// ReservationPgxTxRepository — write-only, tx always set
+type ReservationPgxTxRepository struct {
+	tx      pgx.Tx
+	metrics ReservationMetrics
+}
+
+func (r *ReservationPgxTxRepository) Insert(ctx context.Context, sku uint64, count uint32) (models.Reservation, error) {
 	const query = `
 INSERT INTO reservations (sku, count)
 VALUES ($1, $2)
@@ -38,7 +44,7 @@ RETURNING id, sku, count, created_at`
 	var reservation models.Reservation
 	var skuInt int64
 	var countInt int32
-	err := r.connection.QueryRow(ctx, query, int64(sku), int32(count)).Scan(&reservation.Id, &skuInt, &countInt, &reservation.CreatedAt)
+	err := r.tx.QueryRow(ctx, query, int64(sku), int32(count)).Scan(&reservation.Id, &skuInt, &countInt, &reservation.CreatedAt)
 	if err != nil {
 		r.metrics.ReportRequest("InsertReservation", "error")
 		return models.Reservation{}, fmt.Errorf("PgxRepository.Insert: %w", err)
@@ -50,13 +56,26 @@ RETURNING id, sku, count, created_at`
 	return reservation, nil
 }
 
+func (r *ReservationPgxTxRepository) DeleteByIds(ctx context.Context, ids []int64) error {
+	const query = `DELETE FROM reservations WHERE id = ANY($1)`
+
+	_, err := r.tx.Exec(ctx, query, ids)
+	if err != nil {
+		r.metrics.ReportRequest("DeleteReservationsByIds", "error")
+		return fmt.Errorf("PgxRepository.DeleteByIds: %w", err)
+	}
+
+	r.metrics.ReportRequest("DeleteReservationsByIds", "success")
+	return nil
+}
+
 func (r *ReservationPgxRepository) GetByIds(ctx context.Context, ids []int64) ([]models.Reservation, error) {
 	const query = `
 SELECT id, sku, count, created_at
 FROM reservations
 WHERE id = ANY($1)`
 
-	rows, err := r.connection.Query(ctx, query, ids)
+	rows, err := r.pool.Query(ctx, query, ids)
 	if err != nil {
 		r.metrics.ReportRequest("GetReservationsByIds", "error")
 		return nil, fmt.Errorf("PgxRepository.GetByIds: %w", err)
@@ -81,26 +100,13 @@ WHERE id = ANY($1)`
 	return result, nil
 }
 
-func (r *ReservationPgxRepository) DeleteByIds(ctx context.Context, ids []int64) error {
-	const query = `DELETE FROM reservations WHERE id = ANY($1)`
-
-	_, err := r.connection.Exec(ctx, query, ids)
-	if err != nil {
-		r.metrics.ReportRequest("DeleteReservationsByIds", "error")
-		return fmt.Errorf("PgxRepository.DeleteByIds: %w", err)
-	}
-
-	r.metrics.ReportRequest("DeleteReservationsByIds", "success")
-	return nil
-}
-
 func (r *ReservationPgxRepository) GetExpired(ctx context.Context, cutoff time.Time) ([]models.Reservation, error) {
 	const query = `
 SELECT id, sku, count, created_at
 FROM reservations
 WHERE created_at < $1`
 
-	rows, err := r.connection.Query(ctx, query, cutoff)
+	rows, err := r.pool.Query(ctx, query, cutoff)
 	if err != nil {
 		r.metrics.ReportRequest("GetExpiredReservations", "error")
 		return nil, fmt.Errorf("PgxRepository.GetExpired: %w", err)

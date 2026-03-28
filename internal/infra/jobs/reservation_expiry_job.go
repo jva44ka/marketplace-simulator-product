@@ -7,17 +7,15 @@ import (
 	"time"
 
 	"github.com/jva44ka/ozon-simulator-go-products/internal/domain/models"
-	"github.com/jva44ka/ozon-simulator-go-products/internal/domain/services"
 	"github.com/jva44ka/ozon-simulator-go-products/internal/infra/kafka"
 )
 
 type ReservationRepository interface {
 	GetExpired(ctx context.Context, cutoff time.Time) ([]models.Reservation, error)
-	DeleteByIds(ctx context.Context, ids []int64) error
 }
 
 type ProductService interface {
-	ReleaseReservation(ctx context.Context, products []services.UpdateCount) error
+	ReleaseReservations(ctx context.Context, ids []int64) error
 }
 
 type ReservationExpiryJob struct {
@@ -71,27 +69,13 @@ func (j *ReservationExpiryJob) tick(ctx context.Context) error {
 		return nil
 	}
 
-	grouped := make(map[uint64]uint32, len(expired))
-	for _, r := range expired {
-		grouped[r.Sku] += r.Count
-	}
-
-	products := make([]services.UpdateCount, 0, len(grouped))
-	for sku, count := range grouped {
-		products = append(products, services.UpdateCount{Sku: sku, Delta: count})
-	}
-
-	if err = j.productService.ReleaseReservation(ctx, products); err != nil {
-		return fmt.Errorf("ReleaseReservation: %w", err)
-	}
-
 	ids := make([]int64, len(expired))
 	for i, r := range expired {
 		ids[i] = r.Id
 	}
 
-	if err = j.reservationRepo.DeleteByIds(ctx, ids); err != nil {
-		return fmt.Errorf("DeleteByIds: %w", err)
+	if err = j.productService.ReleaseReservations(ctx, ids); err != nil {
+		return fmt.Errorf("ReleaseReservations: %w", err)
 	}
 
 	for _, r := range expired {

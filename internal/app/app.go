@@ -58,13 +58,11 @@ func NewApp(cfg *config.Config) (*App, error) {
 	}
 
 	dbMetrics := metrics.NewDbMetrics()
-	productRepo := data.NewProductPgxRepository(pool, dbMetrics)
-	reservationRepo := data.NewReservationPgxRepository(pool, dbMetrics)
+	db := data.NewDBManager(pool, dbMetrics, dbMetrics)
 	producer := kafka.NewProducer(cfg.Kafka.Brokers, cfg.Kafka.ReservationExpiredTopic)
 
-	transactor := data.NewTransactor(pool, dbMetrics, dbMetrics)
-	domainService := services.NewService(productRepo, reservationRepo, transactor)
-	expiryJob := jobs.NewReservationExpiryJob(reservationRepo, domainService, producer, reservationTTL, jobInterval)
+	domainService := services.NewService(db)
+	expiryJob := jobs.NewReservationExpiryJob(db.ReservationRepo(), domainService, producer, reservationTTL, jobInterval)
 
 	grpcServer := grpc.NewServer(
 		grpc.ChainUnaryInterceptor(

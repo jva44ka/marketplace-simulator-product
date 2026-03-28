@@ -8,38 +8,32 @@ import (
 	"github.com/jva44ka/ozon-simulator-go-products/internal/domain"
 )
 
-type Transactor struct {
-	pool               *pgxpool.Pool
-	productMetrics     RepositoryMetrics
-	reservationMetrics ReservationMetrics
+type DBManager struct {
+	pool         *pgxpool.Pool
+	products     *ProductPgxRepository
+	reservations *ReservationPgxRepository
 }
 
-func NewTransactor(pool *pgxpool.Pool, productMetrics RepositoryMetrics, reservationMetrics ReservationMetrics) *Transactor {
-	return &Transactor{
-		pool:               pool,
-		productMetrics:     productMetrics,
-		reservationMetrics: reservationMetrics,
+func NewDBManager(pool *pgxpool.Pool, productMetrics RepositoryMetrics, reservationMetrics ReservationMetrics) *DBManager {
+	return &DBManager{
+		pool:         pool,
+		products:     NewProductPgxRepository(pool, productMetrics),
+		reservations: NewReservationPgxRepository(pool, reservationMetrics),
 	}
 }
 
-type repositories struct {
-	products     domain.ProductRepository
-	reservations domain.ReservationRepository
+func (m *DBManager) Products() domain.ProductReadRepository {
+	return m.products
 }
 
-func (r repositories) Products() domain.ProductRepository {
-	return r.products
+func (m *DBManager) Reservations() domain.ReservationReadRepository {
+	return m.reservations
 }
 
-func (r repositories) Reservations() domain.ReservationRepository {
-	return r.reservations
+func (m *DBManager) ReservationRepo() *ReservationPgxRepository {
+	return m.reservations
 }
 
-func (t *Transactor) InTransaction(ctx context.Context, fn func(repos domain.Repositories) error) error {
-	return pgx.BeginTxFunc(ctx, t.pool, pgx.TxOptions{}, func(tx pgx.Tx) error {
-		return fn(repositories{
-			products:     NewProductPgxRepository(tx, t.productMetrics),
-			reservations: NewReservationPgxRepository(tx, t.reservationMetrics),
-		})
-	})
+func (m *DBManager) InTransaction(ctx context.Context, fn func(tx pgx.Tx) error) error {
+	return pgx.BeginTxFunc(ctx, m.pool, pgx.TxOptions{}, fn)
 }

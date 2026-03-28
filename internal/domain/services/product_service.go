@@ -6,26 +6,18 @@ import (
 	"maps"
 	"slices"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jva44ka/ozon-simulator-go-products/internal/domain"
 	domainErrors "github.com/jva44ka/ozon-simulator-go-products/internal/domain/errors"
 	"github.com/jva44ka/ozon-simulator-go-products/internal/domain/models"
 )
 
 type Service struct {
-	productRepository     domain.ProductRepository
-	reservationRepository domain.ReservationRepository
-	transactor            domain.Transactor
+	db domain.DBManager
 }
 
-func NewService(
-	productRepository domain.ProductRepository,
-	reservationRepository domain.ReservationRepository,
-	transactor domain.Transactor) *Service {
-	return &Service{
-		productRepository:     productRepository,
-		reservationRepository: reservationRepository,
-		transactor:            transactor,
-	}
+func NewService(db domain.DBManager) *Service {
+	return &Service{db: db}
 }
 
 type UpdateCount struct {
@@ -34,32 +26,31 @@ type UpdateCount struct {
 }
 
 func (s *Service) GetProductBySku(ctx context.Context, sku uint64) (*models.Product, error) {
-	product, err := s.productRepository.GetProductBySku(ctx, sku)
+	product, err := s.db.Products().GetProductBySku(ctx, sku)
 	if err != nil {
 		return nil, fmt.Errorf("productRepository.GetProductBySku: %w", err)
 	}
-
 	if product == nil {
 		return nil, domainErrors.NewProductNotFoundError(sku)
 	}
-
 	return product, nil
 }
 
 func (s *Service) IncreaseCount(ctx context.Context, products []UpdateCount) error {
-	existingProductsMap, err := validateProductsExist(ctx, products, s.productRepository)
+	existingProductsMap, err := validateProductsExist(ctx, products, s.db.Products())
 	if err != nil {
 		return err
 	}
-	for _, product := range products {
-		existingProductsMap[product.Sku].Count += product.Delta
+	for _, p := range products {
+		existingProductsMap[p.Sku].Count += p.Delta
 	}
-	return s.productRepository.UpdateCount(ctx, slices.Collect(maps.Values(existingProductsMap)))
+	return s.db.InTransaction(ctx, func(tx pgx.Tx) error {
+		return s.db.Products().WithTx(tx).UpdateCount(ctx, slices.Collect(maps.Values(existingProductsMap)))
+	})
 }
 
 func (s *Service) Reserve(ctx context.Context, products []UpdateCount) (map[uint64]int64, error) {
-	// Читаем до транзакции: xmin нужен для оптимистичной блокировки при UPDATE
-	existingProductsMap, err := validateProductsExist(ctx, products, s.productRepository)
+	existingProductsMap, err := validateProductsExist(ctx, products, s.db.Products())
 	if err != nil {
 		return nil, err
 	}
@@ -72,12 +63,12 @@ func (s *Service) Reserve(ctx context.Context, products []UpdateCount) (map[uint
 	}
 
 	reservationIds := make(map[uint64]int64, len(products))
-	err = s.transactor.InTransaction(ctx, func(repos domain.Repositories) error {
-		if err := repos.Products().UpdateCount(ctx, slices.Collect(maps.Values(existingProductsMap))); err != nil {
+	err = s.db.InTransaction(ctx, func(tx pgx.Tx) error {
+		if err := s.db.Products().WithTx(tx).UpdateCount(ctx, slices.Collect(maps.Values(existingProductsMap))); err != nil {
 			return fmt.Errorf("ProductService.Reserve: %w", err)
 		}
 		for _, p := range products {
-			rv, err := repos.Reservations().Insert(ctx, p.Sku, p.Delta)
+			rv, err := s.db.Reservations().WithTx(tx).Insert(ctx, p.Sku, p.Delta)
 			if err != nil {
 				return fmt.Errorf("ProductService.Reserve: %w", err)
 			}
@@ -92,7 +83,7 @@ func (s *Service) Reserve(ctx context.Context, products []UpdateCount) (map[uint
 }
 
 func (s *Service) ReleaseReservations(ctx context.Context, ids []int64) error {
-	reservations, err := s.reservationRepository.GetByIds(ctx, ids)
+	reservations, err := s.db.Reservations().GetByIds(ctx, ids)
 	if err != nil {
 		return fmt.Errorf("ProductService.ReleaseReservations: %w", err)
 	}
@@ -100,7 +91,7 @@ func (s *Service) ReleaseReservations(ctx context.Context, ids []int64) error {
 	for i, r := range reservations {
 		products[i] = UpdateCount{Sku: r.Sku, Delta: r.Count}
 	}
-	existingProductsMap, err := validateProductsExist(ctx, products, s.productRepository)
+	existingProductsMap, err := validateProductsExist(ctx, products, s.db.Products())
 	if err != nil {
 		return err
 	}
@@ -108,30 +99,37 @@ func (s *Service) ReleaseReservations(ctx context.Context, ids []int64) error {
 		existingProductsMap[p.Sku].Count += p.Delta
 	}
 
-	return s.transactor.InTransaction(ctx, func(repos domain.Repositories) error {
-		if err = repos.Products().UpdateCount(ctx, slices.Collect(maps.Values(existingProductsMap))); err != nil {
+	return s.db.InTransaction(ctx, func(tx pgx.Tx) error {
+		if err := s.db.Products().WithTx(tx).UpdateCount(ctx, slices.Collect(maps.Values(existingProductsMap))); err != nil {
 			return err
 		}
-		return repos.Reservations().DeleteByIds(ctx, ids)
+		return s.db.Reservations().WithTx(tx).DeleteByIds(ctx, ids)
 	})
 }
 
 func (s *Service) ConfirmReservations(ctx context.Context, ids []int64) error {
-	return s.reservationRepository.DeleteByIds(ctx, ids)
+	return s.db.InTransaction(ctx, func(tx pgx.Tx) error {
+		return s.db.Reservations().WithTx(tx).DeleteByIds(ctx, ids)
+	})
 }
 
 func (s *Service) ReleaseReservation(ctx context.Context, products []UpdateCount) error {
-	existingProductsMap, err := validateProductsExist(ctx, products, s.productRepository)
+	existingProductsMap, err := validateProductsExist(ctx, products, s.db.Products())
 	if err != nil {
 		return err
 	}
 	for _, p := range products {
 		existingProductsMap[p.Sku].Count += p.Delta
 	}
-	return s.productRepository.UpdateCount(ctx, slices.Collect(maps.Values(existingProductsMap)))
+	return s.db.InTransaction(ctx, func(tx pgx.Tx) error {
+		return s.db.Products().WithTx(tx).UpdateCount(ctx, slices.Collect(maps.Values(existingProductsMap)))
+	})
 }
 
-func validateProductsExist(ctx context.Context, products []UpdateCount, repo domain.ProductRepository) (map[uint64]*models.Product, error) {
+func validateProductsExist(
+	ctx context.Context,
+	products []UpdateCount,
+	repo domain.ProductReadRepository) (map[uint64]*models.Product, error) {
 	skus := make([]uint64, 0, len(products))
 	for _, product := range products {
 		skus = append(skus, product.Sku)

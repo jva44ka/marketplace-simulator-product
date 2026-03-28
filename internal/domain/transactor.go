@@ -3,26 +3,32 @@ package domain
 import (
 	"context"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jva44ka/ozon-simulator-go-products/internal/domain/models"
 )
 
-type ProductRepository interface {
+type ProductReadRepository interface {
 	GetProductBySku(ctx context.Context, sku uint64) (*models.Product, error)
 	GetProductsBySkus(ctx context.Context, skus []uint64) ([]*models.Product, error)
+	WithTx(tx pgx.Tx) ProductWriteRepository
+}
+
+type ProductWriteRepository interface {
 	UpdateCount(ctx context.Context, products []*models.Product) error
 }
 
-type ReservationRepository interface {
-	Insert(ctx context.Context, sku uint64, count uint32) (models.Reservation, error)
+type ReservationReadRepository interface {
 	GetByIds(ctx context.Context, ids []int64) ([]models.Reservation, error)
+	WithTx(tx pgx.Tx) ReservationWriteRepository
+}
+
+type ReservationWriteRepository interface {
+	Insert(ctx context.Context, sku uint64, count uint32) (models.Reservation, error)
 	DeleteByIds(ctx context.Context, ids []int64) error
 }
 
-type Repositories interface {
-	Products() ProductRepository
-	Reservations() ReservationRepository
-}
-
-type Transactor interface {
-	InTransaction(context.Context, func(repos Repositories) error) error
+type DBManager interface {
+	Products() ProductReadRepository
+	Reservations() ReservationReadRepository
+	InTransaction(ctx context.Context, fn func(tx pgx.Tx) error) error
 }
