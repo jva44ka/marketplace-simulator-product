@@ -9,9 +9,9 @@ proto-generate:
       -I C:/Git/googleapis \
       -I C:/Git/grpc-gateway \
       -I C:/Git/protoc/include \
-      --go_out=./internal/app/gen \
-      --go-grpc_out=./internal/app/gen \
-      --grpc-gateway_out=./internal/app/gen \
+      --go_out=./internal/app/pb \
+      --go-grpc_out=./internal/app/pb \
+      --grpc-gateway_out=./internal/app/pb \
       --openapiv2_out=swagger \
       api/v1/products.proto
 

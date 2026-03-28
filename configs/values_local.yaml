@@ -27,4 +27,5 @@ kafka:
   reservation-expired-topic: reservation.expired
 
 reservation:
+  ttl: 30m
   job-interval: 10m
