@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	pb "github.com/jva44ka/ozon-simulator-go-products/internal/app/pb/ozon-simulator-go-products/api/v1/proto"
-	"github.com/jva44ka/ozon-simulator-go-products/internal/services"
+	"github.com/jva44ka/ozon-simulator-go-products/internal/services/product"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -14,10 +14,10 @@ var _ pb.ProductsServer = (*GrpcService)(nil)
 
 type GrpcService struct {
 	pb.UnimplementedProductsServer
-	svc services.Service
+	svc product.Service
 }
 
-func NewGrpcService(svc *services.Service) *GrpcService {
+func NewGrpcService(svc *product.Service) *GrpcService {
 	return &GrpcService{svc: *svc}
 }
 
@@ -26,7 +26,7 @@ func (s *GrpcService) GetProduct(ctx context.Context, request *pb.GetProductRequ
 		return nil, status.Errorf(codes.InvalidArgument, "sku must be more than zero")
 	}
 
-	p, err := s.svc.GetProductBySku(ctx, request.Sku)
+	p, err := s.svc.GetBySku(ctx, request.Sku)
 	if err != nil {
 		return nil, fmt.Errorf("GrpcService.GetProduct: %w", err)
 	}
@@ -46,12 +46,12 @@ func (s *GrpcService) IncreaseProductCount(
 		return nil, status.Errorf(codes.InvalidArgument, "products must not be empty")
 	}
 
-	products := make([]services.UpdateCount, 0, len(request.Products))
+	products := make([]product.UpdateCount, 0, len(request.Products))
 	for _, stock := range request.Products {
 		if stock.Sku < 1 {
 			return nil, status.Errorf(codes.InvalidArgument, "sku must be more than zero")
 		}
-		products = append(products, services.UpdateCount{
+		products = append(products, product.UpdateCount{
 			Sku:   stock.Sku,
 			Delta: stock.Count,
 		})
@@ -71,12 +71,12 @@ func (s *GrpcService) ReserveProduct(
 		return nil, status.Errorf(codes.InvalidArgument, "products must not be empty")
 	}
 
-	products := make([]services.UpdateCount, 0, len(request.Products))
+	products := make([]product.UpdateCount, 0, len(request.Products))
 	for _, stock := range request.Products {
 		if stock.Sku < 1 {
 			return nil, status.Errorf(codes.InvalidArgument, "sku must be more than zero")
 		}
-		products = append(products, services.UpdateCount{
+		products = append(products, product.UpdateCount{
 			Sku:   stock.Sku,
 			Delta: stock.Count,
 		})
