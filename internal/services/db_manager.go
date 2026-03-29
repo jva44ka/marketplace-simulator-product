@@ -1,29 +1,29 @@
-package domain
+package services
 
 import (
 	"context"
 
 	"github.com/jackc/pgx/v5"
-	models2 "github.com/jva44ka/ozon-simulator-go-products/internal/models"
+	"github.com/jva44ka/ozon-simulator-go-products/internal/models"
 )
 
 type ProductReadRepository interface {
-	GetProductBySku(ctx context.Context, sku uint64) (*models2.Product, error)
-	GetProductsBySkus(ctx context.Context, skus []uint64) ([]*models2.Product, error)
+	GetProductBySku(ctx context.Context, sku uint64) (*models.Product, error)
+	GetProductsBySkus(ctx context.Context, skus []uint64) ([]*models.Product, error)
 	WithTx(tx pgx.Tx) ProductWriteRepository
 }
 
 type ProductWriteRepository interface {
-	UpdateCount(ctx context.Context, products []*models2.Product) error
+	UpdateCount(ctx context.Context, products []*models.Product) error
 }
 
 type ReservationReadRepository interface {
-	GetByIds(ctx context.Context, ids []int64) ([]models2.Reservation, error)
+	GetByIds(ctx context.Context, ids []int64) ([]models.Reservation, error)
 	WithTx(tx pgx.Tx) ReservationWriteRepository
 }
 
 type ReservationWriteRepository interface {
-	Insert(ctx context.Context, sku uint64, count uint32) (models2.Reservation, error)
+	Insert(ctx context.Context, sku uint64, count uint32) (models.Reservation, error)
 	DeleteByIds(ctx context.Context, ids []int64) error
 }
 

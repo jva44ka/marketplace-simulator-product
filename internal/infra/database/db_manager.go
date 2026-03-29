@@ -5,8 +5,8 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/jva44ka/ozon-simulator-go-products/internal/domain"
 	"github.com/jva44ka/ozon-simulator-go-products/internal/infra/database/repositories"
+	"github.com/jva44ka/ozon-simulator-go-products/internal/services"
 )
 
 type DBManager struct {
@@ -23,11 +23,11 @@ func NewDBManager(pool *pgxpool.Pool, productMetrics repositories.RepositoryMetr
 	}
 }
 
-func (m *DBManager) Products() domain.ProductReadRepository {
+func (m *DBManager) Products() services.ProductReadRepository {
 	return m.products
 }
 
-func (m *DBManager) Reservations() domain.ReservationReadRepository {
+func (m *DBManager) Reservations() services.ReservationReadRepository {
 	return m.reservations
 }
 

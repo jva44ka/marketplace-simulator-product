@@ -6,8 +6,8 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/jva44ka/ozon-simulator-go-products/internal/domain"
 	"github.com/jva44ka/ozon-simulator-go-products/internal/models"
+	"github.com/jva44ka/ozon-simulator-go-products/internal/services"
 )
 
 type RepositoryMetrics interface {
@@ -29,7 +29,7 @@ type ProductPgxTxRepository struct {
 	metrics RepositoryMetrics
 }
 
-func (r *ProductPgxRepository) WithTx(tx pgx.Tx) domain.ProductWriteRepository {
+func (r *ProductPgxRepository) WithTx(tx pgx.Tx) services.ProductWriteRepository {
 	return &ProductPgxTxRepository{tx: tx, metrics: r.metrics}
 }
 

@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	pb "github.com/jva44ka/ozon-simulator-go-products/internal/app/pb/ozon-simulator-go-products/api/v1/proto"
-	"github.com/jva44ka/ozon-simulator-go-products/internal/domain/services"
+	"github.com/jva44ka/ozon-simulator-go-products/internal/services"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	domainErrors "github.com/jva44ka/ozon-simulator-go-products/internal/domain/errors"
+	errors2 "github.com/jva44ka/ozon-simulator-go-products/internal/errors"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -26,9 +26,9 @@ func StatusCode(ctx context.Context, req any, _ *grpc.UnaryServerInfo, handler g
 
 func grpcStatusFromErr(err error) error {
 	switch {
-	case errors.Is(err, &domainErrors.ProductNotFoundError{}):
+	case errors.Is(err, &errors2.ProductNotFoundError{}):
 		return status.Errorf(codes.NotFound, err.Error())
-	case errors.Is(err, &domainErrors.InsufficientProductError{}):
+	case errors.Is(err, &errors2.InsufficientProductError{}):
 		return status.Errorf(codes.FailedPrecondition, err.Error())
 	default:
 		return status.Errorf(codes.Internal, err.Error())

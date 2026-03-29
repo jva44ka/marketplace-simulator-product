@@ -7,8 +7,8 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/jva44ka/ozon-simulator-go-products/internal/domain"
 	"github.com/jva44ka/ozon-simulator-go-products/internal/models"
+	"github.com/jva44ka/ozon-simulator-go-products/internal/services"
 )
 
 type ReservationMetrics interface {
@@ -29,7 +29,7 @@ type ReservationPgxTxRepository struct {
 	metrics ReservationMetrics
 }
 
-func (r *ReservationPgxRepository) WithTx(tx pgx.Tx) domain.ReservationWriteRepository {
+func (r *ReservationPgxRepository) WithTx(tx pgx.Tx) services.ReservationWriteRepository {
 	return &ReservationPgxTxRepository{tx: tx, metrics: r.metrics}
 }
 
