@@ -36,9 +36,3 @@ func (s *Service) ReleaseReservations(ctx context.Context, ids []int64) error {
 		return s.db.Reservations().WithTx(tx).DeleteByIds(ctx, ids)
 	})
 }
-
-func (s *Service) ConfirmReservations(ctx context.Context, ids []int64) error {
-	return s.db.InTransaction(ctx, func(tx pgx.Tx) error {
-		return s.db.Reservations().WithTx(tx).DeleteByIds(ctx, ids)
-	})
-}

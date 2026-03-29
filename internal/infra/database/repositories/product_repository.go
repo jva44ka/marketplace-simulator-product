@@ -53,6 +53,7 @@ func (r *ProductPgxRepository) GetProductBySku(ctx context.Context, sku uint64) 
 }
 
 func (r *ProductPgxRepository) GetProductsBySkus(ctx context.Context, skus []uint64) ([]*models.Product, error) {
+	//TODO: Тут нужно брать не просто каунт у продуктов, а еще и смотреть есть ли reservations, если есть, то от product.count отнимать reservation.count
 	const query = `
 SELECT sku, price, name, count, xmin
 FROM products

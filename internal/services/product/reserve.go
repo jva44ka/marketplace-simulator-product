@@ -11,6 +11,7 @@ import (
 	"github.com/jva44ka/ozon-simulator-go-products/internal/models"
 )
 
+// TODO вынести в reservations service
 func (s *Service) Reserve(ctx context.Context, products []UpdateCount) (map[uint64]int64, error) {
 	existingProductsMap, err := validateProductsExist(ctx, products, s.db.Products())
 	if err != nil {
