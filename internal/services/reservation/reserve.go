@@ -9,6 +9,11 @@ import (
 	"github.com/jva44ka/ozon-simulator-go-products/internal/models"
 )
 
+type ReserveItem struct {
+	Sku   uint64
+	Delta uint32
+}
+
 func (s *Service) Reserve(ctx context.Context, reserveItems []ReserveItem) (map[uint64]int64, error) {
 	skus := make([]uint64, 0, len(reserveItems))
 	for _, reserveItem := range reserveItems {
@@ -59,6 +64,8 @@ func (s *Service) Reserve(ctx context.Context, reserveItems []ReserveItem) (map[
 			if err != nil {
 				return fmt.Errorf("Reserve: %w", err)
 			}
+			//TODO: если передадут 2 одинаковых sku в запросе то тут будет перезапись
+			//как вариант можно проверять sku в запрсое на уникальность
 			reservationIds[item.Sku] = reservation.Id
 		}
 

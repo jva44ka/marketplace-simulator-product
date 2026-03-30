@@ -11,8 +11,3 @@ type Service struct {
 func NewService(db services.DBManager) *Service {
 	return &Service{db: db}
 }
-
-type ReserveItem struct {
-	Sku   uint64
-	Delta uint32
-}

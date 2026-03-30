@@ -40,9 +40,9 @@ swagger/             — сгенерированный OpenAPI-файл
 |------------------------|----------------------------------------------------|
 | `GetProduct`           | Получить информацию о товаре по SKU                |
 | `IncreaseProductCount` | Увеличить количество товаров на складе             |
-| `ReserveProduct`       | Зарезервировать товар (создаёт запись резервации)  |
-| `ReleaseReservation`   | Снять резервацию (возврат товара на склад)         |
-| `ConfirmReservation`   | Подтвердить покупку (удаляет запись резервации)    |
+| `ReserveProduct`       | Зарезервировать товар (создаёт запись резервации, остатки не изменяются) |
+| `ReleaseReservation`   | Снять резервацию (удаляет запись резервации, остатки не изменяются)      |
+| `ConfirmReservation`   | Подтвердить покупку (списывает товар со склада и удаляет резервацию)     |
 
 ### HTTP REST (порт 8080 по умолчанию, grpc-gateway)
 
@@ -50,9 +50,9 @@ swagger/             — сгенерированный OpenAPI-файл
 |--------|----------------------------------------|---------------------------------------|
 | GET    | `/v1/products/{sku}`                   | Получить товар по SKU                 |
 | POST   | `/v1/products/increase-count`          | Увеличить количество товаров          |
-| POST   | `/v1/products/reserve`                 | Зарезервировать товар                 |
-| POST   | `/v1/products/release-reservation`     | Снять резервацию                      |
-| POST   | `/v1/products/confirm-reservation`     | Подтвердить покупку                   |
+| POST   | `/v1/products/reserve`                 | Зарезервировать товар (создаёт запись резервации)              |
+| POST   | `/v1/products/release-reservation`     | Снять резервацию (удаляет запись резервации)                   |
+| POST   | `/v1/products/confirm-reservation`     | Подтвердить покупку (списывает со склада, удаляет резервацию)  |
 | GET    | `/metrics`                             | Prometheus-метрики                    |
 | GET    | `/swagger/`                            | Swagger UI                            |
 | GET    | `/api/`                                | OpenAPI JSON                          |
@@ -157,9 +157,10 @@ make docker-push-migrator
 
 | Метрика                                      | Тип       | Описание                                     |
 |----------------------------------------------|-----------|----------------------------------------------|
-| `products_grpc_requests_total`               | Counter   | Общее количество gRPC-запросов (method, code)|
-| `products_grpc_request_duration_seconds`     | Histogram | Время обработки gRPC-запроса (method)        |
-| `products_db_requests_total`                 | Counter   | Запросы к БД (method, status)                |
+| `products_grpc_requests_total`               | Counter   | Общее количество gRPC-запросов (method, code)                      |
+| `products_grpc_request_duration_seconds`     | Histogram | Время обработки gRPC-запроса (method)                              |
+| `products_db_requests_total`                 | Counter   | Запросы к БД (method, status)                                      |
+| `products_db_optimistic_lock_failures_total` | Counter   | Сбои оптимистичной блокировки при обновлении остатков товаров      |
 
 Доступны по адресу `GET /metrics`.
 
