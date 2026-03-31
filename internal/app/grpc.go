@@ -15,12 +15,12 @@ var _ pb.ProductsServer = (*GrpcService)(nil)
 
 type GrpcService struct {
 	pb.UnimplementedProductsServer
-	svc    product.Service
-	resSvc reservation.Service
+	productService     *product.Service
+	reservationService *reservation.Service
 }
 
 func NewGrpcService(svc *product.Service, resSvc *reservation.Service) *GrpcService {
-	return &GrpcService{svc: *svc, resSvc: *resSvc}
+	return &GrpcService{productService: svc, reservationService: resSvc}
 }
 
 func (s *GrpcService) GetProduct(ctx context.Context, request *pb.GetProductRequest) (*pb.GetProductResponse, error) {
@@ -28,7 +28,7 @@ func (s *GrpcService) GetProduct(ctx context.Context, request *pb.GetProductRequ
 		return nil, status.Errorf(codes.InvalidArgument, "sku must be more than zero")
 	}
 
-	p, err := s.svc.GetBySku(ctx, request.Sku)
+	p, err := s.productService.GetBySku(ctx, request.Sku)
 	if err != nil {
 		return nil, fmt.Errorf("GrpcService.GetProduct: %w", err)
 	}
@@ -48,18 +48,23 @@ func (s *GrpcService) IncreaseProductCount(
 		return nil, status.Errorf(codes.InvalidArgument, "products must not be empty")
 	}
 
+	seenSkus := make(map[uint64]struct{}, len(request.Products))
 	products := make([]product.UpdateCount, 0, len(request.Products))
 	for _, stock := range request.Products {
 		if stock.Sku < 1 {
 			return nil, status.Errorf(codes.InvalidArgument, "sku must be more than zero")
 		}
+		if _, exists := seenSkus[stock.Sku]; exists {
+			return nil, status.Errorf(codes.InvalidArgument, "duplicate sku %d in request", stock.Sku)
+		}
+		seenSkus[stock.Sku] = struct{}{}
 		products = append(products, product.UpdateCount{
 			Sku:   stock.Sku,
 			Delta: stock.Count,
 		})
 	}
 
-	if err := s.svc.IncreaseCount(ctx, products); err != nil {
+	if err := s.productService.IncreaseCount(ctx, products); err != nil {
 		return nil, fmt.Errorf("GrpcService.IncreaseProductCount: %w", err)
 	}
 
@@ -73,18 +78,23 @@ func (s *GrpcService) ReserveProduct(
 		return nil, status.Errorf(codes.InvalidArgument, "products must not be empty")
 	}
 
+	seenSkus := make(map[uint64]struct{}, len(request.Products))
 	items := make([]reservation.ReserveItem, 0, len(request.Products))
 	for _, stock := range request.Products {
 		if stock.Sku < 1 {
 			return nil, status.Errorf(codes.InvalidArgument, "sku must be more than zero")
 		}
+		if _, exists := seenSkus[stock.Sku]; exists {
+			return nil, status.Errorf(codes.InvalidArgument, "duplicate sku %d in request", stock.Sku)
+		}
+		seenSkus[stock.Sku] = struct{}{}
 		items = append(items, reservation.ReserveItem{
 			Sku:   stock.Sku,
 			Delta: stock.Count,
 		})
 	}
 
-	reservationIds, err := s.resSvc.Reserve(ctx, items)
+	reservationIds, err := s.reservationService.Reserve(ctx, items)
 	if err != nil {
 		return nil, fmt.Errorf("GrpcService.ReserveProduct: %w", err)
 	}
@@ -107,7 +117,7 @@ func (s *GrpcService) ReleaseReservation(
 		return nil, status.Errorf(codes.InvalidArgument, "reservation_ids must not be empty")
 	}
 
-	if err := s.resSvc.Release(ctx, request.ReservationIds); err != nil {
+	if err := s.reservationService.Release(ctx, request.ReservationIds); err != nil {
 		return nil, fmt.Errorf("GrpcService.ReleaseReservation: %w", err)
 	}
 
@@ -121,7 +131,7 @@ func (s *GrpcService) ConfirmReservation(
 		return nil, status.Errorf(codes.InvalidArgument, "reservation_ids must not be empty")
 	}
 
-	if err := s.resSvc.Confirm(ctx, request.ReservationIds); err != nil {
+	if err := s.reservationService.Confirm(ctx, request.ReservationIds); err != nil {
 		return nil, fmt.Errorf("GrpcService.ConfirmReservation: %w", err)
 	}
 
