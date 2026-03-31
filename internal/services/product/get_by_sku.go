@@ -17,14 +17,10 @@ func (s *Service) GetBySku(ctx context.Context, sku uint64) (*models.Product, er
 		return nil, errors.NewProductNotFoundError(sku)
 	}
 
-	reservations, err := s.db.Reservations().GetSumBySkus(ctx, []uint64{sku})
-	if err != nil {
-		return nil, fmt.Errorf("productRepository.GetBySku: %w", err)
-	}
-
-	if reserved := reservations[sku]; reserved > 0 {
-		if product.Count >= reserved {
-			product.Count -= reserved
+	if product.ReservedCount > 0 {
+		if product.Count >= product.ReservedCount {
+			//TODO: Возможно стоит оставлять в отдельном поле ReservedCount, а не смешивать 2 поля
+			product.Count -= product.ReservedCount
 			//TODO: резерваций меньше чем оставшихся продуктов
 		} else {
 			product.Count = 0

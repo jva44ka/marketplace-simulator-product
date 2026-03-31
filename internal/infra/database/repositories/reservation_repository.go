@@ -67,35 +67,6 @@ func (r *ReservationPgxTxRepository) DeleteByIds(ctx context.Context, ids []int6
 	return nil
 }
 
-func (r *ReservationPgxRepository) GetSumBySkus(ctx context.Context, skus []uint64) (map[uint64]uint32, error) {
-	const query = `
-SELECT sku, SUM(count)
-FROM reservations
-WHERE sku = ANY($1)
-GROUP BY sku`
-
-	rows, err := r.pool.Query(ctx, query, skus)
-	if err != nil {
-		r.metrics.ReportRequest("GetSumBySkus", "error")
-		return nil, fmt.Errorf("ReservationRepository.GetSumBySkus: %w", err)
-	}
-	defer rows.Close()
-
-	result := make(map[uint64]uint32, len(skus))
-	for rows.Next() {
-		var sku int64
-		var sum int64
-		if err = rows.Scan(&sku, &sum); err != nil {
-			r.metrics.ReportRequest("GetSumBySkus", "error")
-			return nil, fmt.Errorf("ReservationRepository.GetSumBySkus: %w", err)
-		}
-		result[uint64(sku)] = uint32(sum)
-	}
-
-	r.metrics.ReportRequest("GetSumBySkus", "success")
-	return result, nil
-}
-
 func (r *ReservationPgxRepository) GetByIds(ctx context.Context, ids []int64) ([]models.Reservation, error) {
 	const query = `
 SELECT id, sku, count, created_at

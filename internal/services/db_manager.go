@@ -19,7 +19,6 @@ type ProductWriteRepository interface {
 
 type ReservationReadRepository interface {
 	GetByIds(ctx context.Context, ids []int64) ([]models.Reservation, error)
-	GetSumBySkus(ctx context.Context, skus []uint64) (map[uint64]uint32, error)
 	WithTx(tx pgx.Tx) ReservationWriteRepository
 }
 
