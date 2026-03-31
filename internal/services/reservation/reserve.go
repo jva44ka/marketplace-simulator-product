@@ -66,8 +66,6 @@ func (s *Service) Reserve(ctx context.Context, reserveItems []ReserveItem) (map[
 			if err != nil {
 				return fmt.Errorf("Reserve: %w", err)
 			}
-			//TODO: если передадут 2 одинаковых sku в запросе то тут будет перезапись
-			//как вариант можно проверять sku в запросе на уникальность
 			reservationIds[item.Sku] = reservation.Id
 		}
 
