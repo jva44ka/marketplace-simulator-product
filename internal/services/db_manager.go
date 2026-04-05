@@ -27,8 +27,24 @@ type ReservationWriteRepository interface {
 	DeleteByIds(ctx context.Context, ids []int64) error
 }
 
+type ProductEventsOutboxReadRepository interface {
+	GetPending(ctx context.Context, limit int) ([]models.ProductEventOutboxRecord, error)
+	WithTx(tx pgx.Tx) ProductEventsOutboxWriteRepository
+}
+
+type ProductEventsOutboxWriteRepository interface {
+	Create(ctx context.Context, record models.ProductEventOutboxRecordNew) error
+	Delete(ctx context.Context, recordId string) error
+	DeleteBatch(ctx context.Context, recordIds []string) error
+	IncrementRetry(ctx context.Context, recordId string) error
+	IncrementRetryBatch(ctx context.Context, recordIds []string) error
+	MarkDeadLetter(ctx context.Context, recordId string, reason string) error
+	MarkDeadLetterBatch(ctx context.Context, recordIds []string, reason string) error
+}
+
 type DBManager interface {
-	Products() ProductReadRepository
-	Reservations() ReservationReadRepository
+	ProductsRepo() ProductReadRepository
+	ReservationsRepo() ReservationReadRepository
+	ProductEventsOutboxRepo() ProductEventsOutboxReadRepository
 	InTransaction(ctx context.Context, fn func(tx pgx.Tx) error) error
 }

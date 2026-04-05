@@ -37,7 +37,7 @@ func (s *GrpcService) GetProduct(ctx context.Context, request *pb.GetProductRequ
 		Sku:   p.Sku,
 		Name:  p.Name,
 		Price: p.Price,
-		Count: p.Count,
+		Count: p.Count - p.ReservedCount,
 	}, nil
 }
 

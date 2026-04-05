@@ -19,14 +19,14 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	Products_GetProduct_FullMethodName           = "/products.Products/GetProduct"
-	Products_IncreaseProductCount_FullMethodName = "/products.Products/IncreaseProductCount"
-	Products_ReserveProduct_FullMethodName       = "/products.Products/ReserveProduct"
-	Products_ReleaseReservation_FullMethodName   = "/products.Products/ReleaseReservation"
-	Products_ConfirmReservation_FullMethodName   = "/products.Products/ConfirmReservation"
+	Products_GetProduct_FullMethodName           = "/products.ProductsRepo/GetProduct"
+	Products_IncreaseProductCount_FullMethodName = "/products.ProductsRepo/IncreaseProductCount"
+	Products_ReserveProduct_FullMethodName       = "/products.ProductsRepo/ReserveProduct"
+	Products_ReleaseReservation_FullMethodName   = "/products.ProductsRepo/ReleaseReservation"
+	Products_ConfirmReservation_FullMethodName   = "/products.ProductsRepo/ConfirmReservation"
 )
 
-// ProductsClient is the client API for Products service.
+// ProductsClient is the client API for ProductsRepo service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type ProductsClient interface {
@@ -95,7 +95,7 @@ func (c *productsClient) ConfirmReservation(ctx context.Context, in *ConfirmRese
 	return out, nil
 }
 
-// ProductsServer is the server API for Products service.
+// ProductsServer is the server API for ProductsRepo service.
 // All implementations must embed UnimplementedProductsServer
 // for forward compatibility.
 type ProductsServer interface {
@@ -240,11 +240,11 @@ func _Products_ConfirmReservation_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
-// Products_ServiceDesc is the grpc.ServiceDesc for Products service.
+// Products_ServiceDesc is the grpc.ServiceDesc for ProductsRepo service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var Products_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "products.Products",
+	ServiceName: "products.ProductsRepo",
 	HandlerType: (*ProductsServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{

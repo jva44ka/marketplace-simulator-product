@@ -13,6 +13,7 @@ type DBManager struct {
 	pool         *pgxpool.Pool
 	products     *repositories.ProductPgxRepository
 	reservations *repositories.ReservationPgxRepository
+	outbox       *repositories.ProductEventsOutboxPgxRepository
 }
 
 func NewDBManager(pool *pgxpool.Pool, productMetrics repositories.RepositoryMetrics, reservationMetrics repositories.ReservationMetrics) *DBManager {
@@ -20,19 +21,24 @@ func NewDBManager(pool *pgxpool.Pool, productMetrics repositories.RepositoryMetr
 		pool:         pool,
 		products:     repositories.NewProductPgxRepository(pool, productMetrics),
 		reservations: repositories.NewReservationPgxRepository(pool, reservationMetrics),
+		outbox:       repositories.NewOutboxPgxRepository(pool),
 	}
 }
 
-func (m *DBManager) Products() services.ProductReadRepository {
+func (m *DBManager) ProductsRepo() services.ProductReadRepository {
 	return m.products
 }
 
-func (m *DBManager) Reservations() services.ReservationReadRepository {
+func (m *DBManager) ReservationsRepo() services.ReservationReadRepository {
 	return m.reservations
 }
 
-func (m *DBManager) ReservationRepo() *repositories.ReservationPgxRepository {
+func (m *DBManager) ReservationTxRepo() *repositories.ReservationPgxRepository {
 	return m.reservations
+}
+
+func (m *DBManager) ProductEventsOutboxRepo() services.ProductEventsOutboxReadRepository {
+	return m.outbox
 }
 
 func (m *DBManager) InTransaction(ctx context.Context, fn func(tx pgx.Tx) error) error {

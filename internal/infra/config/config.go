@@ -43,14 +43,24 @@ type Config struct {
 	} `yaml:"logging"`
 
 	Kafka struct {
-		Brokers                 []string `yaml:"brokers"`
-		ReservationExpiredTopic string   `yaml:"reservation-expired-topic"`
+		Brokers            []string `yaml:"brokers"`
+		ProductEventsTopic string   `yaml:"product-events-topic"`
 	} `yaml:"kafka"`
 
-	Reservation struct {
-		TTL         string `yaml:"ttl"`
-		JobInterval string `yaml:"job-interval"`
-	} `yaml:"reservation"`
+	Jobs struct {
+		Reservation struct {
+			Enabled     bool   `yaml:"enabled"`
+			TTL         string `yaml:"ttl"`
+			JobInterval string `yaml:"job-interval"`
+		} `yaml:"reservation"`
+
+		Outbox struct {
+			Enabled     bool   `yaml:"enabled"`
+			JobInterval string `yaml:"job-interval"`
+			BatchSize   int    `yaml:"batch-size"`
+			MaxRetries  int    `yaml:"max-retries"`
+		} `yaml:"outbox_record_builder"`
+	} `yaml:"jobs"`
 }
 
 func LoadConfig(filename string) (*Config, error) {

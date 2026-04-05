@@ -11,7 +11,7 @@ import (
 )
 
 func (s *Service) Release(ctx context.Context, ids []int64) error {
-	reservations, err := s.db.Reservations().GetByIds(ctx, ids)
+	reservations, err := s.db.ReservationsRepo().GetByIds(ctx, ids)
 	if err != nil {
 		return fmt.Errorf("ReservationService.Release: %w", err)
 	}
@@ -22,7 +22,7 @@ func (s *Service) Release(ctx context.Context, ids []int64) error {
 	}
 
 	skus := slices.Collect(maps.Keys(reservationSumsBySku))
-	products, err := s.db.Products().GetBySkus(ctx, skus)
+	products, err := s.db.ProductsRepo().GetBySkus(ctx, skus)
 	if err != nil {
 		return fmt.Errorf("ReservationService.Release: %w", err)
 	}
@@ -37,9 +37,9 @@ func (s *Service) Release(ctx context.Context, ids []int64) error {
 	}
 
 	return s.db.InTransaction(ctx, func(tx pgx.Tx) error {
-		if err = s.db.Products().WithTx(tx).Update(ctx, slices.Collect(maps.Values(productMap))); err != nil {
+		if err = s.db.ProductsRepo().WithTx(tx).Update(ctx, slices.Collect(maps.Values(productMap))); err != nil {
 			return fmt.Errorf("Release: %w", err)
 		}
-		return s.db.Reservations().WithTx(tx).DeleteByIds(ctx, ids)
+		return s.db.ReservationsRepo().WithTx(tx).DeleteByIds(ctx, ids)
 	})
 }

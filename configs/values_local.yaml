@@ -24,8 +24,13 @@ logging:
 kafka:
   brokers:
     - localhost:9092
-  reservation-expired-topic: reservation.expired
+  product-events-topic: product.events
 
 reservation:
   ttl: 30m
   job-interval: 10m
+
+outbox:
+  job-interval: 10s
+  batch-size: 100
+  max-retries: 5

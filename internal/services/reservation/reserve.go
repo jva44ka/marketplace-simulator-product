@@ -20,7 +20,7 @@ func (s *Service) Reserve(ctx context.Context, reserveItems []ReserveItem) (map[
 		skus = append(skus, reserveItem.Sku)
 	}
 
-	products, err := s.db.Products().GetBySkus(ctx, skus)
+	products, err := s.db.ProductsRepo().GetBySkus(ctx, skus)
 	if err != nil {
 		return nil, fmt.Errorf("ReservationService.Reserve: %w", err)
 	}
@@ -54,8 +54,8 @@ func (s *Service) Reserve(ctx context.Context, reserveItems []ReserveItem) (map[
 	reservationIds := make(map[uint64]int64, len(reserveItems))
 
 	err = s.db.InTransaction(ctx, func(tx pgx.Tx) error {
-		productsTxRepo := s.db.Products().WithTx(tx)
-		reservationsTxRepo := s.db.Reservations().WithTx(tx)
+		productsTxRepo := s.db.ProductsRepo().WithTx(tx)
+		reservationsTxRepo := s.db.ReservationsRepo().WithTx(tx)
 
 		if err = productsTxRepo.Update(ctx, products); err != nil {
 			return fmt.Errorf("Reserve: %w", err)

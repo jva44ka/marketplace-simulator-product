@@ -17,6 +17,7 @@ import (
 	"github.com/jva44ka/ozon-simulator-go-products/internal/infra/kafka"
 	"github.com/jva44ka/ozon-simulator-go-products/internal/infra/metrics"
 	"github.com/jva44ka/ozon-simulator-go-products/internal/jobs"
+	"github.com/jva44ka/ozon-simulator-go-products/internal/services/outbox"
 	"github.com/jva44ka/ozon-simulator-go-products/internal/services/product"
 	"github.com/jva44ka/ozon-simulator-go-products/internal/services/reservation"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -31,7 +32,8 @@ type App struct {
 	grpcServer *grpc.Server
 	httpServer *http.Server
 	cfg        *config.Config
-	job        *jobs.ReservationExpiryJob
+	expiryJob  *jobs.ReservationExpiryJob
+	outboxJob  *jobs.OutboxPublisherJob
 	producer   *kafka.Producer
 }
 
@@ -53,18 +55,26 @@ func NewApp(cfg *config.Config) (*App, error) {
 		return nil, fmt.Errorf("parse reservation.ttl: %w", err)
 	}
 
-	jobInterval, err := time.ParseDuration(cfg.Reservation.JobInterval)
+	reservationJobInterval, err := time.ParseDuration(cfg.Reservation.JobInterval)
 	if err != nil {
 		return nil, fmt.Errorf("parse reservation.job-interval: %w", err)
 	}
 
+	outboxJobInterval, err := time.ParseDuration(cfg.Outbox.JobInterval)
+	if err != nil {
+		return nil, fmt.Errorf("parse outbox_record_builder.job-interval: %w", err)
+	}
+
 	dbMetrics := metrics.NewDbMetrics()
 	db := database.NewDBManager(pool, dbMetrics, dbMetrics)
-	producer := kafka.NewProducer(cfg.Kafka.Brokers, cfg.Kafka.ReservationExpiredTopic)
+	producer := kafka.NewProducer(cfg.Kafka.Brokers, cfg.Kafka.ProductEventsTopic)
 
-	domainService := product.NewService(db)
-	reservationService := reservation.NewService(db)
-	expiryJob := jobs.NewReservationExpiryJob(db.ReservationRepo(), reservationService, producer, reservationTTL, jobInterval)
+	outboxSvc := outbox.NewProductEventsRecordBuilder(db)
+	productService := product.NewService(db, outboxSvc)
+	reservationService := reservation.NewService(db, outboxSvc)
+
+	expiryJob := jobs.NewReservationExpiryJob(db.ReservationTxRepo(), reservationService, reservationTTL, reservationJobInterval)
+	outboxJob := jobs.NewOutboxPublisherJob(db.ProductEventsOutboxRepo(), producer, outboxJobInterval, cfg.Outbox.BatchSize, int32(cfg.Outbox.MaxRetries))
 
 	grpcServer := grpc.NewServer(
 		grpc.ChainUnaryInterceptor(
@@ -76,7 +86,7 @@ func NewApp(cfg *config.Config) (*App, error) {
 			middleware.Validate,
 		),
 	)
-	grpcService := NewGrpcService(domainService, reservationService)
+	grpcService := NewGrpcService(productService, reservationService)
 
 	pb.RegisterProductsServer(grpcServer, grpcService)
 
@@ -128,7 +138,8 @@ func NewApp(cfg *config.Config) (*App, error) {
 		grpcServer: grpcServer,
 		httpServer: httpServer,
 		cfg:        cfg,
-		job:        expiryJob,
+		expiryJob:  expiryJob,
+		outboxJob:  outboxJob,
 		producer:   producer,
 	}, nil
 }
@@ -136,7 +147,12 @@ func NewApp(cfg *config.Config) (*App, error) {
 func (a *App) Run(ctx context.Context) error {
 	go func() {
 		slog.Info("starting reservation expiry job")
-		a.job.Run(ctx)
+		a.expiryJob.Run(ctx)
+	}()
+
+	go func() {
+		slog.Info("starting outbox_record_builder publisher job")
+		a.outboxJob.Run(ctx)
 	}()
 
 	lis, err := net.Listen("tcp", ":"+a.cfg.GrpcServer.Port)
