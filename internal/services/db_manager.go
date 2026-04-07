@@ -35,12 +35,9 @@ type ProductEventsOutboxReadRepository interface {
 
 type ProductEventsOutboxWriteRepository interface {
 	Create(ctx context.Context, record models.ProductEventOutboxRecordNew) error
-	Delete(ctx context.Context, recordId uuid.UUID) error
 	DeleteBatch(ctx context.Context, recordIds []uuid.UUID) error
 	IncrementRetry(ctx context.Context, recordId uuid.UUID) error
-	IncrementRetryBatch(ctx context.Context, recordIds []uuid.UUID) error
 	MarkDeadLetter(ctx context.Context, recordId uuid.UUID, reason string) error
-	MarkDeadLetterBatch(ctx context.Context, recordIds []uuid.UUID, reason string) error
 }
 
 type DBManager interface {

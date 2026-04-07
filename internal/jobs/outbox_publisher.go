@@ -23,16 +23,13 @@ type ProductEventsOutboxReadRepository interface {
 
 type ProductEventsOutboxWriteRepository interface {
 	Create(ctx context.Context, record models.ProductEventOutboxRecordNew) error
-	Delete(ctx context.Context, recordId uuid.UUID) error
 	DeleteBatch(ctx context.Context, recordIds []uuid.UUID) error
 	IncrementRetry(ctx context.Context, recordId uuid.UUID) error
-	IncrementRetryBatch(ctx context.Context, recordIds []uuid.UUID) error
 	MarkDeadLetter(ctx context.Context, recordId uuid.UUID, reason string) error
-	MarkDeadLetterBatch(ctx context.Context, recordIds []uuid.UUID, reason string) error
 }
 
 type DBManager interface {
-	ProductEventsOutboxRepo() ProductEventsOutboxReadRepository
+	ProductEventsOutboxRepo() services.ProductEventsOutboxReadRepository
 	InTransaction(ctx context.Context, fn func(tx pgx.Tx) error) error
 }
 
@@ -68,7 +65,7 @@ func NewOutboxPublisherJob(
 }
 
 func (j *OutboxPublisherJob) Run(ctx context.Context) {
-	if j.enabled {
+	if !j.enabled {
 		slog.InfoContext(ctx, "OutboxPublisherJob disabled, shutting down")
 	}
 
@@ -123,11 +120,6 @@ func (j *OutboxPublisherJob) tick(ctx context.Context) error {
 	return nil
 }
 
-type FailedRecord struct {
-	recordId uuid.UUID
-	reason   string
-}
-
 type ProcessBatchResult struct {
 	SuccessRecords      []uuid.UUID
 	FailedRecordReasons map[uuid.UUID]string
@@ -164,7 +156,7 @@ func (j *OutboxPublisherJob) processBatch(ctx context.Context, records []models.
 		})
 	}
 
-	if len(failedRecordReasons) == len(records) {
+	if len(kafkaEvents) == len(records) {
 		return ProcessBatchResult{
 			SuccessRecords:      successRecords,
 			FailedRecordReasons: failedRecordReasons,

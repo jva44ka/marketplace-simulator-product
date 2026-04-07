@@ -17,7 +17,6 @@ import (
 	"github.com/jva44ka/ozon-simulator-go-products/internal/infra/kafka"
 	"github.com/jva44ka/ozon-simulator-go-products/internal/infra/metrics"
 	"github.com/jva44ka/ozon-simulator-go-products/internal/jobs"
-	"github.com/jva44ka/ozon-simulator-go-products/internal/services/outbox"
 	"github.com/jva44ka/ozon-simulator-go-products/internal/services/product"
 	"github.com/jva44ka/ozon-simulator-go-products/internal/services/reservation"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -50,17 +49,18 @@ func NewApp(cfg *config.Config) (*App, error) {
 		return nil, fmt.Errorf("pgxpool.New: %w", err)
 	}
 
-	reservationTTL, err := time.ParseDuration(cfg.Reservation.TTL)
+	//TODO: вынести парсинг опций в конкретные фабричные методы соответствующих сущностей
+	reservationTTL, err := time.ParseDuration(cfg.Jobs.CleanReservationExpired.TTL)
 	if err != nil {
 		return nil, fmt.Errorf("parse reservation.ttl: %w", err)
 	}
 
-	reservationJobInterval, err := time.ParseDuration(cfg.Reservation.JobInterval)
+	reservationJobInterval, err := time.ParseDuration(cfg.Jobs.CleanReservationExpired.JobInterval)
 	if err != nil {
 		return nil, fmt.Errorf("parse reservation.job-interval: %w", err)
 	}
 
-	outboxJobInterval, err := time.ParseDuration(cfg.Outbox.JobInterval)
+	outboxJobInterval, err := time.ParseDuration(cfg.Jobs.ProductEventsOutbox.JobInterval)
 	if err != nil {
 		return nil, fmt.Errorf("parse outbox_record_builder.job-interval: %w", err)
 	}
@@ -69,12 +69,23 @@ func NewApp(cfg *config.Config) (*App, error) {
 	db := database.NewDBManager(pool, dbMetrics, dbMetrics)
 	producer := kafka.NewProducer(cfg.Kafka.Brokers, cfg.Kafka.ProductEventsTopic)
 
-	outboxSvc := outbox.NewProductEventsRecordBuilder(db)
-	productService := product.NewService(db, outboxSvc)
-	reservationService := reservation.NewService(db, outboxSvc)
+	productService := product.NewService(db)
+	reservationService := reservation.NewService(db)
 
-	expiryJob := jobs.NewReservationExpiryJob(db.ReservationTxRepo(), reservationService, reservationTTL, reservationJobInterval)
-	outboxJob := jobs.NewOutboxPublisherJob(db.ProductEventsOutboxRepo(), producer, outboxJobInterval, cfg.Jobs.ProductEventsOutbox.BatchSize, int32(cfg.Jobs.ProductEventsOutbox.MaxRetries))
+	expiryJob := jobs.NewReservationExpiryJob(
+		db.ReservationPgxRepo(),
+		reservationService,
+		reservationTTL,
+		reservationJobInterval,
+		cfg.Jobs.CleanReservationExpired.Enabled)
+
+	outboxJob := jobs.NewOutboxPublisherJob(
+		db,
+		producer,
+		cfg.Jobs.ProductEventsOutbox.Enabled,
+		outboxJobInterval,
+		cfg.Jobs.ProductEventsOutbox.BatchSize,
+		int32(cfg.Jobs.ProductEventsOutbox.MaxRetries))
 
 	grpcServer := grpc.NewServer(
 		grpc.ChainUnaryInterceptor(

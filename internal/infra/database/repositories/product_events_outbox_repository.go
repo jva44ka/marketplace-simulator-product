@@ -68,18 +68,6 @@ VALUES ($1, $2);`
 	return nil
 }
 
-func (r *OutboxPgxTxRepository) Delete(ctx context.Context, recordId uuid.UUID) error {
-	const query = `
-DELETE
-FROM outbox.product_events
-WHERE record_id = $1;`
-
-	if _, err := r.tx.Exec(ctx, query, recordId); err != nil {
-		return fmt.Errorf("OutboxRepository.Delete: %w", err)
-	}
-	return nil
-}
-
 func (r *OutboxPgxTxRepository) DeleteBatch(ctx context.Context, recordIds []uuid.UUID) error {
 	const query = `DELETE FROM outbox.product_events WHERE record_id = ANY($1::uuid[]);`
 
@@ -98,15 +86,6 @@ func (r *OutboxPgxTxRepository) IncrementRetry(ctx context.Context, recordId uui
 	return nil
 }
 
-func (r *OutboxPgxTxRepository) IncrementRetryBatch(ctx context.Context, recordIds []uuid.UUID) error {
-	const query = `UPDATE outbox.product_events SET retry_count = retry_count + 1 WHERE record_id = ANY($1::uuid[]);`
-
-	if _, err := r.tx.Exec(ctx, query, recordIds); err != nil {
-		return fmt.Errorf("OutboxRepository.IncrementRetryBatch: %w", err)
-	}
-	return nil
-}
-
 func (r *OutboxPgxTxRepository) MarkDeadLetter(ctx context.Context, recordId uuid.UUID, reason string) error {
 	const query = `
 UPDATE outbox.product_events
@@ -117,20 +96,6 @@ WHERE record_id = $1;`
 
 	if _, err := r.tx.Exec(ctx, query, recordId, time.Now(), reason); err != nil {
 		return fmt.Errorf("OutboxRepository.MarkDeadLetter: %w", err)
-	}
-	return nil
-}
-
-func (r *OutboxPgxTxRepository) MarkDeadLetterBatch(ctx context.Context, recordIds []uuid.UUID, reason string) error {
-	const query = `
-UPDATE outbox.product_events
-SET is_dead_letter = TRUE,
-    marked_as_dead_letter_at = $2,
-    dead_letter_reason = $3
-WHERE record_id = ANY($1::uuid[]);`
-
-	if _, err := r.tx.Exec(ctx, query, recordIds, time.Now(), reason); err != nil {
-		return fmt.Errorf("OutboxRepository.MarkDeadLetterBatch: %w", err)
 	}
 	return nil
 }

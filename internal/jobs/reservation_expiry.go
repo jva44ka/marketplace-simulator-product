@@ -22,6 +22,7 @@ type ReservationExpiryJob struct {
 	reservationService ReservationService
 	reservationTTL     time.Duration
 	interval           time.Duration
+	enabled            bool
 }
 
 func NewReservationExpiryJob(
@@ -29,16 +30,22 @@ func NewReservationExpiryJob(
 	reservationSvc ReservationService,
 	reservationTTL time.Duration,
 	interval time.Duration,
+	enabled bool,
 ) *ReservationExpiryJob {
 	return &ReservationExpiryJob{
 		reservationRepo:    reservationRepo,
 		reservationService: reservationSvc,
 		reservationTTL:     reservationTTL,
 		interval:           interval,
+		enabled:            enabled,
 	}
 }
 
 func (j *ReservationExpiryJob) Run(ctx context.Context) {
+	if !j.enabled {
+		slog.InfoContext(ctx, "OutboxPublisherJob disabled, shutting down")
+	}
+
 	ticker := time.NewTicker(j.interval)
 	defer ticker.Stop()
 
@@ -57,6 +64,7 @@ func (j *ReservationExpiryJob) Run(ctx context.Context) {
 func (j *ReservationExpiryJob) tick(ctx context.Context) error {
 	cutoff := time.Now().Add(-j.reservationTTL)
 
+	//TODO: сделать все через сервис
 	expiredReservations, err := j.reservationRepo.GetExpired(ctx, cutoff)
 	if err != nil {
 		return fmt.Errorf("GetExpired: %w", err)

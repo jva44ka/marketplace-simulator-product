@@ -16,7 +16,10 @@ type DBManager struct {
 	outbox       *repositories.ProductEventsOutboxPgxRepository
 }
 
-func NewDBManager(pool *pgxpool.Pool, productMetrics repositories.RepositoryMetrics, reservationMetrics repositories.ReservationMetrics) *DBManager {
+func NewDBManager(
+	pool *pgxpool.Pool,
+	productMetrics repositories.RepositoryMetrics,
+	reservationMetrics repositories.ReservationMetrics) *DBManager {
 	return &DBManager{
 		pool:         pool,
 		products:     repositories.NewProductPgxRepository(pool, productMetrics),
@@ -33,7 +36,7 @@ func (m *DBManager) ReservationsRepo() services.ReservationReadRepository {
 	return m.reservations
 }
 
-func (m *DBManager) ReservationTxRepo() *repositories.ReservationPgxRepository {
+func (m *DBManager) ReservationPgxRepo() *repositories.ReservationPgxRepository {
 	return m.reservations
 }
 
