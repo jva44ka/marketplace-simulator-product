@@ -15,7 +15,8 @@ type ProductSnapshot struct {
 	Count uint32  `json:"count"`
 }
 
-type ProductChangedPayload struct {
+// TODO: вынести контракт
+type ProductEventData struct {
 	Old ProductSnapshot `json:"old"`
 	New ProductSnapshot `json:"new"`
 }
@@ -44,7 +45,7 @@ func (s *ProductEventsRecordBuilder) BuildRecords(
 			return nil, fmt.Errorf("old state not found for sku: %d", sku)
 		}
 
-		data, err := json.Marshal(ProductChangedPayload{
+		data, err := json.Marshal(ProductEventData{
 			Old: toSnapshot(oldState),
 			New: toSnapshot(newState),
 		})

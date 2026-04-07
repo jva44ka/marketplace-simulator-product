@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jva44ka/ozon-simulator-go-products/internal/models"
@@ -21,21 +22,6 @@ func NewOutboxPgxRepository(pool *pgxpool.Pool) *ProductEventsOutboxPgxRepositor
 
 type OutboxPgxTxRepository struct {
 	tx pgx.Tx
-}
-
-func (r *ProductEventsOutboxPgxRepository) WithTx(tx pgx.Tx) services.ProductEventsOutboxWriteRepository {
-	return &OutboxPgxTxRepository{tx: tx}
-}
-
-func (r *OutboxPgxTxRepository) Create(ctx context.Context, record models.ProductEventOutboxRecordNew) error {
-	const query = `
-INSERT INTO outbox.product_events (key, data)
-VALUES ($1, $2);`
-
-	if _, err := r.tx.Exec(ctx, query, record.Key, record.Data); err != nil {
-		return fmt.Errorf("OutboxRepository.Create: %w", err)
-	}
-	return nil
 }
 
 func (r *ProductEventsOutboxPgxRepository) GetPending(ctx context.Context, limit int) ([]models.ProductEventOutboxRecord, error) {
@@ -67,7 +53,22 @@ LIMIT $1;`
 	return records, rows.Err()
 }
 
-func (r *OutboxPgxTxRepository) Delete(ctx context.Context, recordId string) error {
+func (r *ProductEventsOutboxPgxRepository) WithTx(tx pgx.Tx) services.ProductEventsOutboxWriteRepository {
+	return &OutboxPgxTxRepository{tx: tx}
+}
+
+func (r *OutboxPgxTxRepository) Create(ctx context.Context, record models.ProductEventOutboxRecordNew) error {
+	const query = `
+INSERT INTO outbox.product_events (key, data)
+VALUES ($1, $2);`
+
+	if _, err := r.tx.Exec(ctx, query, record.Key, record.Data); err != nil {
+		return fmt.Errorf("OutboxRepository.Create: %w", err)
+	}
+	return nil
+}
+
+func (r *OutboxPgxTxRepository) Delete(ctx context.Context, recordId uuid.UUID) error {
 	const query = `
 DELETE
 FROM outbox.product_events
@@ -79,7 +80,7 @@ WHERE record_id = $1;`
 	return nil
 }
 
-func (r *OutboxPgxTxRepository) DeleteBatch(ctx context.Context, recordIds []string) error {
+func (r *OutboxPgxTxRepository) DeleteBatch(ctx context.Context, recordIds []uuid.UUID) error {
 	const query = `DELETE FROM outbox.product_events WHERE record_id = ANY($1::uuid[]);`
 
 	if _, err := r.tx.Exec(ctx, query, recordIds); err != nil {
@@ -88,7 +89,7 @@ func (r *OutboxPgxTxRepository) DeleteBatch(ctx context.Context, recordIds []str
 	return nil
 }
 
-func (r *OutboxPgxTxRepository) IncrementRetry(ctx context.Context, recordId string) error {
+func (r *OutboxPgxTxRepository) IncrementRetry(ctx context.Context, recordId uuid.UUID) error {
 	const query = `UPDATE outbox.product_events SET retry_count = retry_count + 1 WHERE record_id = $1;`
 
 	if _, err := r.tx.Exec(ctx, query, recordId); err != nil {
@@ -97,7 +98,7 @@ func (r *OutboxPgxTxRepository) IncrementRetry(ctx context.Context, recordId str
 	return nil
 }
 
-func (r *OutboxPgxTxRepository) IncrementRetryBatch(ctx context.Context, recordIds []string) error {
+func (r *OutboxPgxTxRepository) IncrementRetryBatch(ctx context.Context, recordIds []uuid.UUID) error {
 	const query = `UPDATE outbox.product_events SET retry_count = retry_count + 1 WHERE record_id = ANY($1::uuid[]);`
 
 	if _, err := r.tx.Exec(ctx, query, recordIds); err != nil {
@@ -106,7 +107,7 @@ func (r *OutboxPgxTxRepository) IncrementRetryBatch(ctx context.Context, recordI
 	return nil
 }
 
-func (r *OutboxPgxTxRepository) MarkDeadLetter(ctx context.Context, recordId string, reason string) error {
+func (r *OutboxPgxTxRepository) MarkDeadLetter(ctx context.Context, recordId uuid.UUID, reason string) error {
 	const query = `
 UPDATE outbox.product_events
 SET is_dead_letter = TRUE,
@@ -120,7 +121,7 @@ WHERE record_id = $1;`
 	return nil
 }
 
-func (r *OutboxPgxTxRepository) MarkDeadLetterBatch(ctx context.Context, recordIds []string, reason string) error {
+func (r *OutboxPgxTxRepository) MarkDeadLetterBatch(ctx context.Context, recordIds []uuid.UUID, reason string) error {
 	const query = `
 UPDATE outbox.product_events
 SET is_dead_letter = TRUE,

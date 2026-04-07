@@ -74,7 +74,7 @@ func NewApp(cfg *config.Config) (*App, error) {
 	reservationService := reservation.NewService(db, outboxSvc)
 
 	expiryJob := jobs.NewReservationExpiryJob(db.ReservationTxRepo(), reservationService, reservationTTL, reservationJobInterval)
-	outboxJob := jobs.NewOutboxPublisherJob(db.ProductEventsOutboxRepo(), producer, outboxJobInterval, cfg.Outbox.BatchSize, int32(cfg.Outbox.MaxRetries))
+	outboxJob := jobs.NewOutboxPublisherJob(db.ProductEventsOutboxRepo(), producer, outboxJobInterval, cfg.Jobs.ProductEventsOutbox.BatchSize, int32(cfg.Jobs.ProductEventsOutbox.MaxRetries))
 
 	grpcServer := grpc.NewServer(
 		grpc.ChainUnaryInterceptor(

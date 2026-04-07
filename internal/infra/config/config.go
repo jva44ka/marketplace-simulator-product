@@ -17,13 +17,6 @@ type Config struct {
 		Port string `yaml:"port"`
 	} `yaml:"grpc-server"`
 
-	Products struct {
-		Host   string `yaml:"host"`
-		Port   string `yaml:"port"`
-		Token  string `yaml:"token"`
-		Schema string `yaml:"schema"`
-	} `yaml:"products"`
-
 	Database struct {
 		User     string `yaml:"user"`
 		Password string `yaml:"password"`
@@ -48,18 +41,8 @@ type Config struct {
 	} `yaml:"kafka"`
 
 	Jobs struct {
-		Reservation struct {
-			Enabled     bool   `yaml:"enabled"`
-			TTL         string `yaml:"ttl"`
-			JobInterval string `yaml:"job-interval"`
-		} `yaml:"reservation"`
-
-		Outbox struct {
-			Enabled     bool   `yaml:"enabled"`
-			JobInterval string `yaml:"job-interval"`
-			BatchSize   int    `yaml:"batch-size"`
-			MaxRetries  int    `yaml:"max-retries"`
-		} `yaml:"outbox_record_builder"`
+		CleanReservationExpired CleanReservationExpired `yaml:"clean-reservation-expired"`
+		ProductEventsOutbox     ProductEventsOutbox     `yaml:"product-events-outbox"`
 	} `yaml:"jobs"`
 }
 
@@ -72,9 +55,22 @@ func LoadConfig(filename string) (*Config, error) {
 	defer f.Close()
 
 	config := &Config{}
-	if err := yaml.NewDecoder(f).Decode(config); err != nil {
+	if err = yaml.NewDecoder(f).Decode(config); err != nil {
 		return nil, err
 	}
 
 	return config, nil
+}
+
+type CleanReservationExpired struct {
+	Enabled     bool   `yaml:"enabled"`
+	TTL         string `yaml:"ttl"`
+	JobInterval string `yaml:"job-interval"`
+}
+
+type ProductEventsOutbox struct {
+	Enabled     bool   `yaml:"enabled"`
+	JobInterval string `yaml:"job-interval"`
+	BatchSize   int    `yaml:"batch-size"`
+	MaxRetries  int    `yaml:"max-retries"`
 }

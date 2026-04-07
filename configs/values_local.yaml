@@ -26,11 +26,13 @@ kafka:
     - localhost:9092
   product-events-topic: product.events
 
-reservation:
-  ttl: 30m
-  job-interval: 10m
-
-outbox:
-  job-interval: 10s
-  batch-size: 100
-  max-retries: 5
+jobs:
+  clean-reservation-expired:
+    enabled: true
+    ttl: 30m
+    job-interval: 10m
+  product-events-outbox:
+    enabled: true
+    job-interval: 10s
+    batch-size: 100
+    max-retries: 5

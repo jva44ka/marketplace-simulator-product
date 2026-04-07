@@ -7,18 +7,33 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jva44ka/ozon-simulator-go-products/internal/infra/kafka"
 	"github.com/jva44ka/ozon-simulator-go-products/internal/models"
+	"github.com/jva44ka/ozon-simulator-go-products/internal/services"
+	"github.com/jva44ka/ozon-simulator-go-products/internal/services/outbox"
 )
 
-type OutboxRepository interface {
+// TODO: Вынести местную бизнес-логику в сервис, чтобы не было этой зависимости от репозитория
+type ProductEventsOutboxReadRepository interface {
 	GetPending(ctx context.Context, limit int) ([]models.ProductEventOutboxRecord, error)
-	Delete(ctx context.Context, recordId string) error
-	DeleteBatch(ctx context.Context, recordIds []string) error
-	IncrementRetry(ctx context.Context, recordId string) error
-	IncrementRetryBatch(ctx context.Context, recordIds []string) error
-	MarkDeadLetter(ctx context.Context, recordId string, reason string) error
-	MarkDeadLetterBatch(ctx context.Context, recordIds []string, reason string) error
+	WithTx(tx pgx.Tx) services.ProductEventsOutboxWriteRepository
+}
+
+type ProductEventsOutboxWriteRepository interface {
+	Create(ctx context.Context, record models.ProductEventOutboxRecordNew) error
+	Delete(ctx context.Context, recordId uuid.UUID) error
+	DeleteBatch(ctx context.Context, recordIds []uuid.UUID) error
+	IncrementRetry(ctx context.Context, recordId uuid.UUID) error
+	IncrementRetryBatch(ctx context.Context, recordIds []uuid.UUID) error
+	MarkDeadLetter(ctx context.Context, recordId uuid.UUID, reason string) error
+	MarkDeadLetterBatch(ctx context.Context, recordIds []uuid.UUID, reason string) error
+}
+
+type DBManager interface {
+	ProductEventsOutboxRepo() ProductEventsOutboxReadRepository
+	InTransaction(ctx context.Context, fn func(tx pgx.Tx) error) error
 }
 
 type OutboxKafkaProducer interface {
@@ -26,23 +41,26 @@ type OutboxKafkaProducer interface {
 }
 
 type OutboxPublisherJob struct {
-	repo          OutboxRepository
+	db            DBManager
 	producer      OutboxKafkaProducer
+	enabled       bool
 	interval      time.Duration
 	batchSize     int
 	maxRetryCount int32
 }
 
 func NewOutboxPublisherJob(
-	repo OutboxRepository,
+	db DBManager,
 	producer OutboxKafkaProducer,
+	enabled bool,
 	interval time.Duration,
 	batchSize int,
 	maxRetries int32,
 ) *OutboxPublisherJob {
 	return &OutboxPublisherJob{
-		repo:          repo,
+		db:            db,
 		producer:      producer,
+		enabled:       enabled,
 		interval:      interval,
 		batchSize:     batchSize,
 		maxRetryCount: maxRetries,
@@ -50,6 +68,10 @@ func NewOutboxPublisherJob(
 }
 
 func (j *OutboxPublisherJob) Run(ctx context.Context) {
+	if j.enabled {
+		slog.InfoContext(ctx, "OutboxPublisherJob disabled, shutting down")
+	}
+
 	ticker := time.NewTicker(j.interval)
 	defer ticker.Stop()
 
@@ -66,72 +88,138 @@ func (j *OutboxPublisherJob) Run(ctx context.Context) {
 }
 
 func (j *OutboxPublisherJob) tick(ctx context.Context) error {
-	outboxRecords, err := j.repo.GetPending(ctx, j.batchSize)
+	//TODO добавить метрики
+	//TODO вынести логику обработки аутбокса отдельно от доменного процессинга
+	//TODO сделать обработку паники
+	outboxRecords, err := j.db.ProductEventsOutboxRepo().GetPending(ctx, j.batchSize)
 	if err != nil {
 		return fmt.Errorf("GetPending: %w", err)
 	}
+
 	if len(outboxRecords) == 0 {
 		return nil
 	}
 
-	var (
-		validRecords  []models.ProductEventOutboxRecord
-		validEvents   []kafka.ProductChangedEvent
-		deadLetterIds []string
-	)
+	processBatchResult := j.processBatch(ctx, outboxRecords)
 
-	for _, r := range outboxRecords {
-		var payload kafka.ProductChangedEvent
-		if err := json.Unmarshal(r.Data, &payload); err != nil {
-			slog.ErrorContext(ctx, "unmarshal failed, marking as dead letter",
-				"record_id", r.RecordId, "err", err)
-			deadLetterIds = append(deadLetterIds, r.RecordId)
+	outboxRecordsMap := make(map[uuid.UUID]models.ProductEventOutboxRecord)
+	for _, outboxRecord := range outboxRecords {
+		outboxRecordsMap[outboxRecord.RecordId] = outboxRecord
+	}
+
+	//TODO сделать батчевую обработку
+	for failedRecordId, failedRecordReason := range processBatchResult.FailedRecordReasons {
+		outboxRecord := outboxRecordsMap[failedRecordId]
+
+		if outboxRecord.RetryCount+1 >= j.maxRetryCount {
+			j.markAsDeadLetter(ctx, failedRecordId, failedRecordReason)
+		} else {
+			j.incrementRetry(ctx, failedRecordId)
+		}
+	}
+
+	j.deleteRecords(ctx, processBatchResult.SuccessRecords)
+
+	return nil
+}
+
+type FailedRecord struct {
+	recordId uuid.UUID
+	reason   string
+}
+
+type ProcessBatchResult struct {
+	SuccessRecords      []uuid.UUID
+	FailedRecordReasons map[uuid.UUID]string
+}
+
+// TODO: вынести метод с помощью композиции
+func (j *OutboxPublisherJob) processBatch(ctx context.Context, records []models.ProductEventOutboxRecord) ProcessBatchResult {
+	successRecords := make([]uuid.UUID, 0)
+	failedRecordReasons := make(map[uuid.UUID]string)
+	kafkaEvents := make([]kafka.ProductChangedEvent, 0, len(records))
+
+	for _, outboxRecord := range records {
+		//TODO: вынести маппинг
+		var outboxRecordData outbox.ProductEventData
+		if err := json.Unmarshal(outboxRecord.Data, &outboxRecordData); err != nil {
+			failedRecordReasons[outboxRecord.RecordId] = err.Error()
 			continue
 		}
-		validRecords = append(validRecords, r)
-		validEvents = append(validEvents, payload)
+
+		kafkaEvents = append(kafkaEvents, kafka.ProductChangedEvent{
+			RecordId: outboxRecord.RecordId,
+			Old: kafka.ProductSnapshot{
+				Sku:   outboxRecordData.Old.Sku,
+				Name:  outboxRecordData.Old.Name,
+				Price: outboxRecordData.Old.Price,
+				Count: outboxRecordData.Old.Count,
+			},
+			New: kafka.ProductSnapshot{
+				Sku:   outboxRecordData.New.Sku,
+				Name:  outboxRecordData.New.Name,
+				Price: outboxRecordData.New.Price,
+				Count: outboxRecordData.New.Count,
+			},
+		})
 	}
 
-	if len(deadLetterIds) > 0 {
-		if dlErr := j.repo.MarkDeadLetterBatch(ctx, deadLetterIds, "unmarshal failed"); dlErr != nil {
-			slog.ErrorContext(ctx, "MarkDeadLetterBatch (unmarshal) failed", "err", dlErr)
+	if len(failedRecordReasons) == len(records) {
+		return ProcessBatchResult{
+			SuccessRecords:      successRecords,
+			FailedRecordReasons: failedRecordReasons,
 		}
 	}
 
-	if len(validEvents) == 0 {
-		return nil
+	if err := j.producer.PublishProductChangedBatch(ctx, kafkaEvents); err != nil {
+		for _, kafkaEvent := range kafkaEvents {
+			failedRecordReasons[kafkaEvent.RecordId] = err.Error()
+		}
+	} else {
+		for _, kafkaEvent := range kafkaEvents {
+			successRecords = append(successRecords, kafkaEvent.RecordId)
+		}
 	}
 
-	if err := j.producer.PublishProductChangedBatch(ctx, validEvents); err != nil {
-		slog.ErrorContext(ctx, "PublishProductChangedBatch failed", "err", err)
-
-		var retryIds, maxReachedIds []string
-		for _, r := range validRecords {
-			if r.RetryCount+1 >= j.maxRetryCount {
-				maxReachedIds = append(maxReachedIds, r.RecordId)
-			} else {
-				retryIds = append(retryIds, r.RecordId)
-			}
-		}
-
-		if len(maxReachedIds) > 0 {
-			reason := fmt.Sprintf("max retries reached: %s", err)
-			if dlErr := j.repo.MarkDeadLetterBatch(ctx, maxReachedIds, reason); dlErr != nil {
-				slog.ErrorContext(ctx, "MarkDeadLetterBatch (max retries) failed", "err", dlErr)
-			}
-		}
-		if len(retryIds) > 0 {
-			if retryErr := j.repo.IncrementRetryBatch(ctx, retryIds); retryErr != nil {
-				slog.ErrorContext(ctx, "IncrementRetryBatch failed", "err", retryErr)
-			}
-		}
-
-		return fmt.Errorf("PublishProductChangedBatch: %w", err)
+	return ProcessBatchResult{
+		SuccessRecords:      successRecords,
+		FailedRecordReasons: failedRecordReasons,
 	}
+}
 
-	successIds := make([]string, 0, len(validRecords))
-	for _, r := range validRecords {
-		successIds = append(successIds, r.RecordId)
+func (j *OutboxPublisherJob) markAsDeadLetter(ctx context.Context, recordId uuid.UUID, reason string) {
+	//TODO: чето сделать с этой ненужной вложенностью
+	err := j.db.InTransaction(ctx, func(tx pgx.Tx) error {
+		return j.db.ProductEventsOutboxRepo().WithTx(tx).MarkDeadLetter(
+			ctx,
+			recordId,
+			reason)
+	})
+	if err != nil {
+		slog.ErrorContext(ctx, "MarkDeadLetter failed with error", "err", err)
 	}
-	return j.repo.DeleteBatch(ctx, successIds)
+}
+
+func (j *OutboxPublisherJob) incrementRetry(ctx context.Context, recordId uuid.UUID) {
+	//TODO: чето сделать с этой ненужной вложенностью
+	err := j.db.InTransaction(ctx, func(tx pgx.Tx) error {
+		return j.db.ProductEventsOutboxRepo().WithTx(tx).IncrementRetry(
+			ctx,
+			recordId)
+	})
+	if err != nil {
+		slog.ErrorContext(ctx, "IncrementRetryBatch failed with error", "err", err)
+	}
+}
+
+func (j *OutboxPublisherJob) deleteRecords(ctx context.Context, recordIds []uuid.UUID) {
+	//TODO: чето сделать с этой ненужной вложенностью
+	err := j.db.InTransaction(ctx, func(tx pgx.Tx) error {
+		return j.db.ProductEventsOutboxRepo().WithTx(tx).DeleteBatch(
+			ctx,
+			recordIds)
+	})
+	if err != nil {
+		slog.ErrorContext(ctx, "IncrementRetryBatch failed with error", "err", err)
+	}
 }

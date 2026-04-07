@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/google/uuid"
 	segkafka "github.com/segmentio/kafka-go"
 )
 
@@ -16,9 +17,11 @@ type ProductSnapshot struct {
 	Count uint32  `json:"count"`
 }
 
+// TODO: вынести контракт
 type ProductChangedEvent struct {
-	Old ProductSnapshot `json:"old"`
-	New ProductSnapshot `json:"new"`
+	RecordId uuid.UUID       `json:"recordId"`
+	Old      ProductSnapshot `json:"old"`
+	New      ProductSnapshot `json:"new"`
 }
 
 type Producer struct {
@@ -49,18 +52,18 @@ func (p *Producer) PublishProductChanged(ctx context.Context, old, new ProductSn
 }
 
 func (p *Producer) PublishProductChangedBatch(ctx context.Context, events []ProductChangedEvent) error {
-	msgs := make([]segkafka.Message, 0, len(events))
+	messages := make([]segkafka.Message, 0, len(events))
 	for _, event := range events {
 		data, err := json.Marshal(event)
 		if err != nil {
 			return fmt.Errorf("Producer.PublishProductChangedBatch: marshal sku=%d: %w", event.New.Sku, err)
 		}
-		msgs = append(msgs, segkafka.Message{
+		messages = append(messages, segkafka.Message{
 			Key:   []byte(strconv.FormatUint(event.New.Sku, 10)),
 			Value: data,
 		})
 	}
-	return p.writer.WriteMessages(ctx, msgs...)
+	return p.writer.WriteMessages(ctx, messages...)
 }
 
 func (p *Producer) Close() error {

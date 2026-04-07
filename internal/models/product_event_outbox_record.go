@@ -1,9 +1,13 @@
 package models
 
-import "time"
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
 
 type ProductEventOutboxRecord struct {
-	RecordId             string
+	RecordId             uuid.UUID
 	Key                  string
 	Data                 []byte
 	CreatedAt            time.Time
