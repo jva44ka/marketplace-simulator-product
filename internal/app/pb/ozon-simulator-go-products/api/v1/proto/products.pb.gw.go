@@ -182,7 +182,7 @@ func local_request_Products_ConfirmReservation_0(ctx context.Context, marshaler 
 	return msg, metadata, err
 }
 
-// RegisterProductsHandlerServer registers the http handlers for service ProductsRepo to "mux".
+// RegisterProductsHandlerServer registers the http handlers for service Products to "mux".
 // UnaryRPC     :call ProductsServer directly.
 // StreamingRPC :currently unsupported pending https://github.com/grpc/grpc-go/issues/906.
 // Note that using this registration option will cause many gRPC library features to stop working. Consider using RegisterProductsHandlerFromEndpoint instead.
@@ -194,7 +194,7 @@ func RegisterProductsHandlerServer(ctx context.Context, mux *runtime.ServeMux, s
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/products.ProductsRepo/GetProduct", runtime.WithHTTPPathPattern("/v1/products/{sku}"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/products.Products/GetProduct", runtime.WithHTTPPathPattern("/v1/products/{sku}"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -214,7 +214,7 @@ func RegisterProductsHandlerServer(ctx context.Context, mux *runtime.ServeMux, s
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/products.ProductsRepo/IncreaseProductCount", runtime.WithHTTPPathPattern("/v1/products/increase-count"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/products.Products/IncreaseProductCount", runtime.WithHTTPPathPattern("/v1/products/increase-count"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -234,7 +234,7 @@ func RegisterProductsHandlerServer(ctx context.Context, mux *runtime.ServeMux, s
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/products.ProductsRepo/ReserveProduct", runtime.WithHTTPPathPattern("/v1/products/reserve"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/products.Products/ReserveProduct", runtime.WithHTTPPathPattern("/v1/products/reserve"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -254,7 +254,7 @@ func RegisterProductsHandlerServer(ctx context.Context, mux *runtime.ServeMux, s
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/products.ProductsRepo/ReleaseReservation", runtime.WithHTTPPathPattern("/v1/products/release-reservation"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/products.Products/ReleaseReservation", runtime.WithHTTPPathPattern("/v1/products/release-reservation"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -274,7 +274,7 @@ func RegisterProductsHandlerServer(ctx context.Context, mux *runtime.ServeMux, s
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/products.ProductsRepo/ConfirmReservation", runtime.WithHTTPPathPattern("/v1/products/confirm-reservation"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/products.Products/ConfirmReservation", runtime.WithHTTPPathPattern("/v1/products/confirm-reservation"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -316,13 +316,13 @@ func RegisterProductsHandlerFromEndpoint(ctx context.Context, mux *runtime.Serve
 	return RegisterProductsHandler(ctx, mux, conn)
 }
 
-// RegisterProductsHandler registers the http handlers for service ProductsRepo to "mux".
+// RegisterProductsHandler registers the http handlers for service Products to "mux".
 // The handlers forward requests to the grpc endpoint over "conn".
 func RegisterProductsHandler(ctx context.Context, mux *runtime.ServeMux, conn *grpc.ClientConn) error {
 	return RegisterProductsHandlerClient(ctx, mux, NewProductsClient(conn))
 }
 
-// RegisterProductsHandlerClient registers the http handlers for service ProductsRepo
+// RegisterProductsHandlerClient registers the http handlers for service Products
 // to "mux". The handlers forward requests to the grpc endpoint over the given implementation of "ProductsClient".
 // Note: the gRPC framework executes interceptors within the gRPC handler. If the passed in "ProductsClient"
 // doesn't go through the normal gRPC flow (creating a gRPC client etc.) then it will be up to the passed in
@@ -332,7 +332,7 @@ func RegisterProductsHandlerClient(ctx context.Context, mux *runtime.ServeMux, c
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/products.ProductsRepo/GetProduct", runtime.WithHTTPPathPattern("/v1/products/{sku}"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/products.Products/GetProduct", runtime.WithHTTPPathPattern("/v1/products/{sku}"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -349,7 +349,7 @@ func RegisterProductsHandlerClient(ctx context.Context, mux *runtime.ServeMux, c
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/products.ProductsRepo/IncreaseProductCount", runtime.WithHTTPPathPattern("/v1/products/increase-count"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/products.Products/IncreaseProductCount", runtime.WithHTTPPathPattern("/v1/products/increase-count"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -366,7 +366,7 @@ func RegisterProductsHandlerClient(ctx context.Context, mux *runtime.ServeMux, c
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/products.ProductsRepo/ReserveProduct", runtime.WithHTTPPathPattern("/v1/products/reserve"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/products.Products/ReserveProduct", runtime.WithHTTPPathPattern("/v1/products/reserve"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -383,7 +383,7 @@ func RegisterProductsHandlerClient(ctx context.Context, mux *runtime.ServeMux, c
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/products.ProductsRepo/ReleaseReservation", runtime.WithHTTPPathPattern("/v1/products/release-reservation"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/products.Products/ReleaseReservation", runtime.WithHTTPPathPattern("/v1/products/release-reservation"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -400,7 +400,7 @@ func RegisterProductsHandlerClient(ctx context.Context, mux *runtime.ServeMux, c
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/products.ProductsRepo/ConfirmReservation", runtime.WithHTTPPathPattern("/v1/products/confirm-reservation"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/products.Products/ConfirmReservation", runtime.WithHTTPPathPattern("/v1/products/confirm-reservation"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return

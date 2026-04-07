@@ -37,7 +37,7 @@ func (s *RecordBuilder) BuildRecords(
 		return nil, fmt.Errorf("oldStates and newStates are not the same length")
 	}
 
-	records := make([]models.ProductEventOutboxRecordNew, len(newStates))
+	records := make([]models.ProductEventOutboxRecordNew, 0, len(newStates))
 
 	for sku, newState := range newStates {
 		oldState, ok := s.oldStates[sku]

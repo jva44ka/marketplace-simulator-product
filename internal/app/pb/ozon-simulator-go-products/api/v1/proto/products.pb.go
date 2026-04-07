@@ -699,16 +699,16 @@ var file_api_v1_products_proto_depIdxs = []int32{
 	10, // 0: products.IncreaseProductCountRequest.products:type_name -> products.IncreaseProductCountRequest.IncreaseProductCountBatch
 	11, // 1: products.ReserveProductRequest.products:type_name -> products.ReserveProductRequest.ProductCountBatch
 	12, // 2: products.ReserveProductResponse.results:type_name -> products.ReserveProductResponse.ReservationResult
-	0,  // 3: products.ProductsRepo.GetProduct:input_type -> products.GetProductRequest
-	2,  // 4: products.ProductsRepo.IncreaseProductCount:input_type -> products.IncreaseProductCountRequest
-	4,  // 5: products.ProductsRepo.ReserveProduct:input_type -> products.ReserveProductRequest
-	6,  // 6: products.ProductsRepo.ReleaseReservation:input_type -> products.ReleaseReservationRequest
-	8,  // 7: products.ProductsRepo.ConfirmReservation:input_type -> products.ConfirmReservationRequest
-	1,  // 8: products.ProductsRepo.GetProduct:output_type -> products.GetProductResponse
-	3,  // 9: products.ProductsRepo.IncreaseProductCount:output_type -> products.IncreaseProductCountResponse
-	5,  // 10: products.ProductsRepo.ReserveProduct:output_type -> products.ReserveProductResponse
-	7,  // 11: products.ProductsRepo.ReleaseReservation:output_type -> products.ReleaseReservationResponse
-	9,  // 12: products.ProductsRepo.ConfirmReservation:output_type -> products.ConfirmReservationResponse
+	0,  // 3: products.Products.GetProduct:input_type -> products.GetProductRequest
+	2,  // 4: products.Products.IncreaseProductCount:input_type -> products.IncreaseProductCountRequest
+	4,  // 5: products.Products.ReserveProduct:input_type -> products.ReserveProductRequest
+	6,  // 6: products.Products.ReleaseReservation:input_type -> products.ReleaseReservationRequest
+	8,  // 7: products.Products.ConfirmReservation:input_type -> products.ConfirmReservationRequest
+	1,  // 8: products.Products.GetProduct:output_type -> products.GetProductResponse
+	3,  // 9: products.Products.IncreaseProductCount:output_type -> products.IncreaseProductCountResponse
+	5,  // 10: products.Products.ReserveProduct:output_type -> products.ReserveProductResponse
+	7,  // 11: products.Products.ReleaseReservation:output_type -> products.ReleaseReservationResponse
+	9,  // 12: products.Products.ConfirmReservation:output_type -> products.ConfirmReservationResponse
 	8,  // [8:13] is the sub-list for method output_type
 	3,  // [3:8] is the sub-list for method input_type
 	3,  // [3:3] is the sub-list for extension type_name

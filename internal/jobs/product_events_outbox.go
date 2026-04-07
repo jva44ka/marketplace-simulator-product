@@ -172,7 +172,7 @@ func (j *ProductEventsOutboxJob) processBatch(ctx context.Context, records []mod
 		})
 	}
 
-	if len(kafkaEvents) == len(records) {
+	if len(failedRecordReasons) == len(records) {
 		return ProcessBatchResult{
 			SuccessRecords:      successRecords,
 			FailedRecordReasons: failedRecordReasons,
