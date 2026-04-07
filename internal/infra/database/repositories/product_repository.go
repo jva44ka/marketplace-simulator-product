@@ -29,7 +29,7 @@ type ProductPgxTxRepository struct {
 	metrics RepositoryMetrics
 }
 
-func (r *ProductPgxRepository) WithTx(tx pgx.Tx) services.ProductWriteRepository {
+func (r *ProductPgxRepository) WithTx(tx pgx.Tx) services.ProductTxRepository {
 	return &ProductPgxTxRepository{tx: tx, metrics: r.metrics}
 }
 

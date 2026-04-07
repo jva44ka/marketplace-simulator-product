@@ -25,7 +25,7 @@ type UpdateCount struct {
 func validateProductsExist(
 	ctx context.Context,
 	products []UpdateCount,
-	repo services.ProductReadRepository) (map[uint64]*models.Product, error) {
+	repo services.ProductRepository) (map[uint64]*models.Product, error) {
 	skus := make([]uint64, 0, len(products))
 	for _, product := range products {
 		skus = append(skus, product.Sku)

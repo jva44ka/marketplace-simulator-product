@@ -29,7 +29,7 @@ type ReservationPgxTxRepository struct {
 	metrics ReservationMetrics
 }
 
-func (r *ReservationPgxRepository) WithTx(tx pgx.Tx) services.ReservationWriteRepository {
+func (r *ReservationPgxRepository) WithTx(tx pgx.Tx) services.ReservationTxRepository {
 	return &ReservationPgxTxRepository{tx: tx, metrics: r.metrics}
 }
 

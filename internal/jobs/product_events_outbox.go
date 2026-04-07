@@ -18,7 +18,7 @@ import (
 // TODO: Вынести местную бизнес-логику в сервис, чтобы не было этой зависимости от репозитория
 type ProductEventsOutboxReadRepository interface {
 	GetPending(ctx context.Context, limit int) ([]models.ProductEventOutboxRecord, error)
-	WithTx(tx pgx.Tx) services.ProductEventsOutboxWriteRepository
+	WithTx(tx pgx.Tx) services.ProductEventsOutboxTxRepository
 }
 
 type ProductEventsOutboxWriteRepository interface {
@@ -29,7 +29,7 @@ type ProductEventsOutboxWriteRepository interface {
 }
 
 type DBManager interface {
-	ProductEventsOutboxRepo() services.ProductEventsOutboxReadRepository
+	ProductEventsOutboxRepo() services.ProductEventsOutboxRepository
 	InTransaction(ctx context.Context, fn func(tx pgx.Tx) error) error
 }
 
@@ -109,13 +109,29 @@ func (j *ProductEventsOutboxJob) tick(ctx context.Context) error {
 		outboxRecord := outboxRecordsMap[failedRecordId]
 
 		if outboxRecord.RetryCount+1 >= j.maxRetryCount {
-			j.markAsDeadLetter(ctx, failedRecordId, failedRecordReason)
+			err = j.db.ProductEventsOutboxRepo().MarkDeadLetter(
+				ctx,
+				failedRecordId,
+				failedRecordReason)
+			if err != nil {
+				slog.ErrorContext(ctx, "MarkDeadLetter failed with error", "err", err)
+			}
 		} else {
-			j.incrementRetry(ctx, failedRecordId)
+			err = j.db.ProductEventsOutboxRepo().IncrementRetry(
+				ctx,
+				failedRecordId)
+			if err != nil {
+				slog.ErrorContext(ctx, "IncrementRetryBatch failed with error", "err", err)
+			}
 		}
 	}
 
-	j.deleteRecords(ctx, processBatchResult.SuccessRecords)
+	err = j.db.ProductEventsOutboxRepo().DeleteBatch(
+		ctx,
+		processBatchResult.SuccessRecords)
+	if err != nil {
+		slog.ErrorContext(ctx, "IncrementRetryBatch failed with error", "err", err)
+	}
 
 	return nil
 }
@@ -176,42 +192,5 @@ func (j *ProductEventsOutboxJob) processBatch(ctx context.Context, records []mod
 	return ProcessBatchResult{
 		SuccessRecords:      successRecords,
 		FailedRecordReasons: failedRecordReasons,
-	}
-}
-
-func (j *ProductEventsOutboxJob) markAsDeadLetter(ctx context.Context, recordId uuid.UUID, reason string) {
-	//TODO: чето сделать с этой ненужной вложенностью
-	err := j.db.InTransaction(ctx, func(tx pgx.Tx) error {
-		return j.db.ProductEventsOutboxRepo().WithTx(tx).MarkDeadLetter(
-			ctx,
-			recordId,
-			reason)
-	})
-	if err != nil {
-		slog.ErrorContext(ctx, "MarkDeadLetter failed with error", "err", err)
-	}
-}
-
-func (j *ProductEventsOutboxJob) incrementRetry(ctx context.Context, recordId uuid.UUID) {
-	//TODO: чето сделать с этой ненужной вложенностью
-	err := j.db.InTransaction(ctx, func(tx pgx.Tx) error {
-		return j.db.ProductEventsOutboxRepo().WithTx(tx).IncrementRetry(
-			ctx,
-			recordId)
-	})
-	if err != nil {
-		slog.ErrorContext(ctx, "IncrementRetryBatch failed with error", "err", err)
-	}
-}
-
-func (j *ProductEventsOutboxJob) deleteRecords(ctx context.Context, recordIds []uuid.UUID) {
-	//TODO: чето сделать с этой ненужной вложенностью
-	err := j.db.InTransaction(ctx, func(tx pgx.Tx) error {
-		return j.db.ProductEventsOutboxRepo().WithTx(tx).DeleteBatch(
-			ctx,
-			recordIds)
-	})
-	if err != nil {
-		slog.ErrorContext(ctx, "IncrementRetryBatch failed with error", "err", err)
 	}
 }

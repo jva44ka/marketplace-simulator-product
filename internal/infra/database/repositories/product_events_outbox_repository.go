@@ -20,7 +20,7 @@ func NewOutboxPgxRepository(pool *pgxpool.Pool) *ProductEventsOutboxPgxRepositor
 	return &ProductEventsOutboxPgxRepository{pool: pool}
 }
 
-type OutboxPgxTxRepository struct {
+type ProductEventsOutboxPgxTxRepository struct {
 	tx pgx.Tx
 }
 
@@ -53,40 +53,25 @@ LIMIT $1;`
 	return records, rows.Err()
 }
 
-func (r *ProductEventsOutboxPgxRepository) WithTx(tx pgx.Tx) services.ProductEventsOutboxWriteRepository {
-	return &OutboxPgxTxRepository{tx: tx}
-}
-
-func (r *OutboxPgxTxRepository) Create(ctx context.Context, record models.ProductEventOutboxRecordNew) error {
-	const query = `
-INSERT INTO outbox.product_events (key, data)
-VALUES ($1, $2);`
-
-	if _, err := r.tx.Exec(ctx, query, record.Key, record.Data); err != nil {
-		return fmt.Errorf("OutboxRepository.Create: %w", err)
-	}
-	return nil
-}
-
-func (r *OutboxPgxTxRepository) DeleteBatch(ctx context.Context, recordIds []uuid.UUID) error {
+func (r *ProductEventsOutboxPgxRepository) DeleteBatch(ctx context.Context, recordIds []uuid.UUID) error {
 	const query = `DELETE FROM outbox.product_events WHERE record_id = ANY($1::uuid[]);`
 
-	if _, err := r.tx.Exec(ctx, query, recordIds); err != nil {
+	if _, err := r.pool.Exec(ctx, query, recordIds); err != nil {
 		return fmt.Errorf("OutboxRepository.DeleteBatch: %w", err)
 	}
 	return nil
 }
 
-func (r *OutboxPgxTxRepository) IncrementRetry(ctx context.Context, recordId uuid.UUID) error {
+func (r *ProductEventsOutboxPgxRepository) IncrementRetry(ctx context.Context, recordId uuid.UUID) error {
 	const query = `UPDATE outbox.product_events SET retry_count = retry_count + 1 WHERE record_id = $1;`
 
-	if _, err := r.tx.Exec(ctx, query, recordId); err != nil {
+	if _, err := r.pool.Exec(ctx, query, recordId); err != nil {
 		return fmt.Errorf("OutboxRepository.IncrementRetry: %w", err)
 	}
 	return nil
 }
 
-func (r *OutboxPgxTxRepository) MarkDeadLetter(ctx context.Context, recordId uuid.UUID, reason string) error {
+func (r *ProductEventsOutboxPgxRepository) MarkDeadLetter(ctx context.Context, recordId uuid.UUID, reason string) error {
 	const query = `
 UPDATE outbox.product_events
 SET is_dead_letter = TRUE,
@@ -94,8 +79,23 @@ SET is_dead_letter = TRUE,
     dead_letter_reason = $3
 WHERE record_id = $1;`
 
-	if _, err := r.tx.Exec(ctx, query, recordId, time.Now(), reason); err != nil {
+	if _, err := r.pool.Exec(ctx, query, recordId, time.Now(), reason); err != nil {
 		return fmt.Errorf("OutboxRepository.MarkDeadLetter: %w", err)
+	}
+	return nil
+}
+
+func (r *ProductEventsOutboxPgxRepository) WithTx(tx pgx.Tx) services.ProductEventsOutboxTxRepository {
+	return &ProductEventsOutboxPgxTxRepository{tx: tx}
+}
+
+func (r *ProductEventsOutboxPgxTxRepository) Create(ctx context.Context, record models.ProductEventOutboxRecordNew) error {
+	const query = `
+INSERT INTO outbox.product_events (key, data)
+VALUES ($1, $2);`
+
+	if _, err := r.tx.Exec(ctx, query, record.Key, record.Data); err != nil {
+		return fmt.Errorf("OutboxRepository.Create: %w", err)
 	}
 	return nil
 }

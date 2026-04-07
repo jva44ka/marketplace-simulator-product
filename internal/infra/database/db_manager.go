@@ -28,11 +28,11 @@ func NewDBManager(
 	}
 }
 
-func (m *DBManager) ProductsRepo() services.ProductReadRepository {
+func (m *DBManager) ProductsRepo() services.ProductRepository {
 	return m.products
 }
 
-func (m *DBManager) ReservationsRepo() services.ReservationReadRepository {
+func (m *DBManager) ReservationsRepo() services.ReservationRepository {
 	return m.reservations
 }
 
@@ -40,7 +40,7 @@ func (m *DBManager) ReservationPgxRepo() *repositories.ReservationPgxRepository 
 	return m.reservations
 }
 
-func (m *DBManager) ProductEventsOutboxRepo() services.ProductEventsOutboxReadRepository {
+func (m *DBManager) ProductEventsOutboxRepo() services.ProductEventsOutboxRepository {
 	return m.outbox
 }
 
