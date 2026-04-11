@@ -33,7 +33,7 @@ type App struct {
 	cfg                    *config.Config
 	reservationExpiryJob   *jobs.ReservationExpiryJob
 	productEventsOutboxJob *jobs.ProductEventsOutboxJob
-	producer               *kafka.Producer
+	producer               *kafka.ProductEventsProducer
 }
 
 func NewApp(cfg *config.Config) (*App, error) {
@@ -72,7 +72,7 @@ func NewApp(cfg *config.Config) (*App, error) {
 
 	dbMetrics := metrics.NewDbMetrics()
 	db := database.NewDBManager(pool, dbMetrics, dbMetrics)
-	producer := kafka.NewProducer(cfg.Kafka.Brokers, cfg.Kafka.ProductEventsTopic, kafkaWriteTimeout)
+	producer := kafka.NewProductEventsProducer(cfg.Kafka.Brokers, cfg.Kafka.ProductEventsTopic, kafkaWriteTimeout)
 
 	productService := product.NewService(db)
 	reservationService := reservation.NewService(db)

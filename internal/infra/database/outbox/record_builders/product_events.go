@@ -44,6 +44,8 @@ func (s *RecordBuilder) BuildRecords(
 		records = append(records, models.ProductEventOutboxRecordNew{
 			Key:  strconv.FormatUint(newState.Sku, 10),
 			Data: string(data),
+			//TODO: добавить проброс заголовков (авторизационных, traceId)
+			Headers: make(map[string]string),
 		})
 	}
 

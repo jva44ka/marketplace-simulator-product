@@ -9,8 +9,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/jva44ka/ozon-simulator-go-products/internal/infra/database/outbox/record_builders"
-	"github.com/jva44ka/ozon-simulator-go-products/internal/infra/kafka"
+	kafkaContracts "github.com/jva44ka/ozon-simulator-go-products/api_internal/kafka"
 	"github.com/jva44ka/ozon-simulator-go-products/internal/models"
 	"github.com/jva44ka/ozon-simulator-go-products/internal/services"
 )
@@ -34,7 +33,7 @@ type DBManager interface {
 }
 
 type OutboxKafkaProducer interface {
-	PublishProductChangedBatch(ctx context.Context, events []kafka.ProductChangedEvent) error
+	PublishProductChangedBatch(ctx context.Context, events []kafkaContracts.ProductEventMessage) error
 }
 
 type ProductEventsOutboxJob struct {
@@ -146,30 +145,23 @@ func (j *ProductEventsOutboxJob) processBatch(ctx context.Context, records []mod
 	successRecords := make([]uuid.UUID, 0)
 	failedRecordReasons := make(map[uuid.UUID]string)
 
-	kafkaEvents := make([]kafka.ProductChangedEvent, 0, len(records))
+	kafkaEvents := make([]kafkaContracts.ProductEventMessage, 0, len(records))
 
 	for _, outboxRecord := range records {
 		//TODO: вынести маппинг
-		var outboxRecordData record_builders.ProductEventData
+		var outboxRecordData kafkaContracts.ProductEventData
 		if err := json.Unmarshal(outboxRecord.Data, &outboxRecordData); err != nil {
 			failedRecordReasons[outboxRecord.RecordId] = err.Error()
 			continue
 		}
 
-		kafkaEvents = append(kafkaEvents, kafka.ProductChangedEvent{
-			RecordId: outboxRecord.RecordId,
-			Old: kafka.ProductSnapshot{
-				Sku:   outboxRecordData.Old.Sku,
-				Name:  outboxRecordData.Old.Name,
-				Price: outboxRecordData.Old.Price,
-				Count: outboxRecordData.Old.Count,
+		kafkaEvents = append(kafkaEvents, kafkaContracts.ProductEventMessage{
+			Key: outboxRecordData.New.Sku,
+			Body: kafkaContracts.ProductEventBody{
+				RecordId: outboxRecord.RecordId,
+				Data:     outboxRecordData,
 			},
-			New: kafka.ProductSnapshot{
-				Sku:   outboxRecordData.New.Sku,
-				Name:  outboxRecordData.New.Name,
-				Price: outboxRecordData.New.Price,
-				Count: outboxRecordData.New.Count,
-			},
+			Headers: outboxRecord.Headers,
 		})
 	}
 
@@ -182,11 +174,11 @@ func (j *ProductEventsOutboxJob) processBatch(ctx context.Context, records []mod
 
 	if err := j.producer.PublishProductChangedBatch(ctx, kafkaEvents); err != nil {
 		for _, kafkaEvent := range kafkaEvents {
-			failedRecordReasons[kafkaEvent.RecordId] = err.Error()
+			failedRecordReasons[kafkaEvent.Body.RecordId] = err.Error()
 		}
 	} else {
 		for _, kafkaEvent := range kafkaEvents {
-			successRecords = append(successRecords, kafkaEvent.RecordId)
+			successRecords = append(successRecords, kafkaEvent.Body.RecordId)
 		}
 	}
 

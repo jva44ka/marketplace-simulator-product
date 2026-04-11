@@ -5,7 +5,7 @@ import (
 )
 
 type ProductEventMessage struct {
-	Key     string
+	Key     uint64
 	Headers map[string]string
 	Body    ProductEventBody
 }

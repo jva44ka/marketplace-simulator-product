@@ -5,6 +5,7 @@ CREATE TABLE outbox.product_events
     record_id                UUID                     DEFAULT uuid_generate_v4() PRIMARY KEY,
     key                      TEXT                                   NOT NULL,
     data                     JSONB                                  NOT NULL,
+    headers                  JSONB                                  NOT NULL,
     created_at               TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
     retry_count              INTEGER                  DEFAULT 0     NOT NULL,
     is_dead_letter           BOOLEAN                  DEFAULT FALSE NOT NULL,
