@@ -2,6 +2,6 @@ package models
 
 type ProductEventOutboxRecordNew struct {
 	Key     string
-	Data    string
+	Data    []byte
 	Headers map[string]string
 }

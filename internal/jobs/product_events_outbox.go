@@ -14,12 +14,6 @@ import (
 	"github.com/jva44ka/ozon-simulator-go-products/internal/services"
 )
 
-// TODO: Вынести местную бизнес-логику в сервис, чтобы не было этой зависимости от репозитория
-type ProductEventsOutboxReadRepository interface {
-	GetPending(ctx context.Context, limit int) ([]models.ProductEventOutboxRecord, error)
-	WithTx(tx pgx.Tx) services.ProductEventsOutboxTxRepository
-}
-
 type DBManager interface {
 	ProductEventsOutboxRepo() services.ProductEventsOutboxRepository
 	InTransaction(ctx context.Context, fn func(tx pgx.Tx) error) error
