@@ -34,6 +34,7 @@ type App struct {
 	cfg                    *config.Config
 	reservationExpiryJob   *jobs.ReservationExpiryJob
 	productEventsOutboxJob *jobs.ProductEventsOutboxJob
+	outboxMonitorJob       *jobs.OutboxMonitorJob
 	producer               *kafka.ProductEventsProducer
 }
 
@@ -63,7 +64,12 @@ func NewApp(cfg *config.Config) (*App, error) {
 
 	outboxJobInterval, err := time.ParseDuration(cfg.Jobs.ProductEventsOutbox.JobInterval)
 	if err != nil {
-		return nil, fmt.Errorf("parse outbox_record_builder.job-interval: %w", err)
+		return nil, fmt.Errorf("parse product-events-outbox.job-interval: %w", err)
+	}
+
+	outboxMonitorInterval, err := time.ParseDuration(cfg.Jobs.ProductEventsOutboxMonitor.JobInterval)
+	if err != nil {
+		return nil, fmt.Errorf("parse outbox-monitor.job-interval: %w", err)
 	}
 
 	kafkaWriteTimeout, err := time.ParseDuration(cfg.Kafka.WriteTimeout)
@@ -85,13 +91,22 @@ func NewApp(cfg *config.Config) (*App, error) {
 		reservationJobInterval,
 		cfg.Jobs.ReservationExpiry.Enabled)
 
-	productEventsOutboxJob := jobs.NewProductEventsOutboxJob(
+	outboxMetrics := metrics.NewOutboxMetrics()
+	outboxJob := jobs.NewProductEventsOutboxJob(
 		db,
 		producer,
+		outboxMetrics,
 		cfg.Jobs.ProductEventsOutbox.Enabled,
 		outboxJobInterval,
 		cfg.Jobs.ProductEventsOutbox.BatchSize,
 		int32(cfg.Jobs.ProductEventsOutbox.MaxRetries))
+
+	outboxMonitorMetrics := metrics.NewOutboxMonitorMetrics()
+	outboxMonitorJob := jobs.NewOutboxMonitorJob(
+		db.ProductEventsOutboxRepo(),
+		outboxMonitorMetrics,
+		cfg.Jobs.ProductEventsOutboxMonitor.Enabled,
+		outboxMonitorInterval)
 
 	grpcServer := grpc.NewServer(
 		grpc.ChainUnaryInterceptor(
@@ -156,7 +171,8 @@ func NewApp(cfg *config.Config) (*App, error) {
 		httpServer:             httpServer,
 		cfg:                    cfg,
 		reservationExpiryJob:   reservationExpiryJob,
-		productEventsOutboxJob: productEventsOutboxJob,
+		productEventsOutboxJob: outboxJob,
+		outboxMonitorJob:       outboxMonitorJob,
 		producer:               producer,
 	}, nil
 }
@@ -179,6 +195,13 @@ func (a *App) Run(ctx context.Context) error {
 	errGroup.Go(func() error {
 		slog.Info("starting product events outbox job")
 		a.productEventsOutboxJob.Run(ctx)
+
+		return nil
+	})
+
+	errGroup.Go(func() error {
+		slog.Info("starting outbox monitor job")
+		a.outboxMonitorJob.Run(ctx)
 
 		return nil
 	})

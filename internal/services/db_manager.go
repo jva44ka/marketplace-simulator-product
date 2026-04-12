@@ -30,6 +30,8 @@ type ReservationTxRepository interface {
 
 type ProductEventsOutboxRepository interface {
 	GetPending(ctx context.Context, limit int) ([]models.ProductEventOutboxRecord, error)
+	CountPending(ctx context.Context) (int64, error)
+	CountDeadLetters(ctx context.Context) (int64, error)
 	DeleteBatch(ctx context.Context, recordIds []uuid.UUID) error
 	IncrementRetry(ctx context.Context, recordId uuid.UUID) error
 	MarkDeadLetter(ctx context.Context, recordId uuid.UUID, reason string) error

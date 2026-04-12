@@ -23,9 +23,17 @@ type OutboxKafkaProducer interface {
 	PublishProductChangedBatch(ctx context.Context, events []kafkaContracts.ProductEventMessage) error
 }
 
+type OutboxJobMetrics interface {
+	ReportProcessed(status string, count int)
+	ReportTickDuration(d time.Duration)
+	ReportKafkaPublishDuration(d time.Duration)
+	ReportRecordAge(age time.Duration)
+}
+
 type ProductEventsOutboxJob struct {
 	db            DBManager
 	producer      OutboxKafkaProducer
+	metrics       OutboxJobMetrics
 	enabled       bool
 	interval      time.Duration
 	batchSize     int
@@ -35,6 +43,7 @@ type ProductEventsOutboxJob struct {
 func NewProductEventsOutboxJob(
 	db DBManager,
 	producer OutboxKafkaProducer,
+	metrics OutboxJobMetrics,
 	enabled bool,
 	interval time.Duration,
 	batchSize int,
@@ -43,6 +52,7 @@ func NewProductEventsOutboxJob(
 	return &ProductEventsOutboxJob{
 		db:            db,
 		producer:      producer,
+		metrics:       metrics,
 		enabled:       enabled,
 		interval:      interval,
 		batchSize:     batchSize,
@@ -72,9 +82,11 @@ func (j *ProductEventsOutboxJob) Run(ctx context.Context) {
 }
 
 func (j *ProductEventsOutboxJob) tick(ctx context.Context) error {
-	//TODO добавить метрики
-	//TODO вынести логику обработки аутбокса отдельно от доменного процессинга
-	//TODO сделать обработку паники
+	tickStart := time.Now()
+	defer func() {
+		j.metrics.ReportTickDuration(time.Since(tickStart))
+	}()
+
 	outboxRecords, err := j.db.ProductEventsOutboxRepo().GetPending(ctx, j.batchSize)
 	if err != nil {
 		return fmt.Errorf("GetPending: %w", err)
@@ -84,12 +96,20 @@ func (j *ProductEventsOutboxJob) tick(ctx context.Context) error {
 		return nil
 	}
 
+	// Замеряем возраст записей
+	for _, record := range outboxRecords {
+		j.metrics.ReportRecordAge(time.Since(record.CreatedAt))
+	}
+
 	processBatchResult := j.processBatch(ctx, outboxRecords)
 
 	outboxRecordsMap := make(map[uuid.UUID]models.ProductEventOutboxRecord)
 	for _, outboxRecord := range outboxRecords {
 		outboxRecordsMap[outboxRecord.RecordId] = outboxRecord
 	}
+
+	deadLetterCount := 0
+	failedCount := 0
 
 	//TODO сделать батчевую обработку
 	for failedRecordId, failedRecordReason := range processBatchResult.FailedRecordReasons {
@@ -103,6 +123,7 @@ func (j *ProductEventsOutboxJob) tick(ctx context.Context) error {
 			if err != nil {
 				slog.ErrorContext(ctx, "MarkDeadLetter failed with error", "err", err)
 			}
+			deadLetterCount++
 		} else {
 			err = j.db.ProductEventsOutboxRepo().IncrementRetry(
 				ctx,
@@ -110,6 +131,7 @@ func (j *ProductEventsOutboxJob) tick(ctx context.Context) error {
 			if err != nil {
 				slog.ErrorContext(ctx, "IncrementRetry failed with error", "err", err)
 			}
+			failedCount++
 		}
 	}
 
@@ -118,6 +140,17 @@ func (j *ProductEventsOutboxJob) tick(ctx context.Context) error {
 		processBatchResult.SuccessRecords)
 	if err != nil {
 		slog.ErrorContext(ctx, "DeleteBatch failed with error", "err", err)
+	}
+
+	// Репортим метрики по результатам
+	if len(processBatchResult.SuccessRecords) > 0 {
+		j.metrics.ReportProcessed("success", len(processBatchResult.SuccessRecords))
+	}
+	if failedCount > 0 {
+		j.metrics.ReportProcessed("failed", failedCount)
+	}
+	if deadLetterCount > 0 {
+		j.metrics.ReportProcessed("dead_letter", deadLetterCount)
 	}
 
 	return nil
@@ -160,7 +193,11 @@ func (j *ProductEventsOutboxJob) processBatch(ctx context.Context, records []mod
 		}
 	}
 
-	if err := j.producer.PublishProductChangedBatch(ctx, kafkaEvents); err != nil {
+	publishStart := time.Now()
+	err := j.producer.PublishProductChangedBatch(ctx, kafkaEvents)
+	j.metrics.ReportKafkaPublishDuration(time.Since(publishStart))
+
+	if err != nil {
 		for _, kafkaEvent := range kafkaEvents {
 			failedRecordReasons[kafkaEvent.Body.RecordId] = err.Error()
 		}
