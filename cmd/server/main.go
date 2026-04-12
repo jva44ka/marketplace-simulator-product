@@ -24,7 +24,7 @@ func main() {
 	}
 
 	if err = app.Run(context.Background()); err != nil {
-		slog.Error("app stopped", "err", err)
+		slog.Error("failed to run app", "err", err)
 		os.Exit(1)
 	}
 }

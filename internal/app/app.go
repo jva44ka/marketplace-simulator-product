@@ -20,6 +20,7 @@ import (
 	"github.com/jva44ka/ozon-simulator-go-products/internal/services/product"
 	"github.com/jva44ka/ozon-simulator-go-products/internal/services/reservation"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/reflection"
@@ -161,24 +162,40 @@ func NewApp(cfg *config.Config) (*App, error) {
 }
 
 func (a *App) Run(ctx context.Context) error {
-	go func() {
-		slog.Info("starting reservation expiry job")
-		a.reservationExpiryJob.Run(ctx)
-	}()
-
-	go func() {
-		slog.Info("starting product events outbox job")
-		a.productEventsOutboxJob.Run(ctx)
-	}()
-
 	lis, err := net.Listen("tcp", ":"+a.cfg.GrpcServer.Port)
 	if err != nil {
 		return err
 	}
 
-	go func() {
-		a.grpcServer.Serve(lis)
-	}()
+	errGroup, ctx := errgroup.WithContext(ctx)
 
-	return a.httpServer.ListenAndServe()
+	errGroup.Go(func() error {
+		slog.Info("starting reservation expiry job")
+		a.reservationExpiryJob.Run(ctx)
+
+		return nil
+	})
+
+	errGroup.Go(func() error {
+		slog.Info("starting product events outbox job")
+		a.productEventsOutboxJob.Run(ctx)
+
+		return nil
+	})
+
+	errGroup.Go(func() error {
+		return a.grpcServer.Serve(lis)
+	})
+
+	errGroup.Go(func() error {
+		return a.httpServer.ListenAndServe()
+	})
+
+	errGroup.Go(func() error {
+		<-ctx.Done()
+		a.grpcServer.Stop()
+		return a.httpServer.Shutdown(ctx)
+	})
+
+	return errGroup.Wait()
 }
