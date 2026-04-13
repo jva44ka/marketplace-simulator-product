@@ -42,8 +42,9 @@ type Config struct {
 	} `yaml:"kafka"`
 
 	Jobs struct {
-		ReservationExpiry   ReservationExpiryConfig   `yaml:"reservation-expiry"`
-		ProductEventsOutbox ProductEventsOutboxConfig `yaml:"product-events-outbox"`
+		ReservationExpiry          ReservationExpiryConfig          `yaml:"reservation-expiry"`
+		ProductEventsOutbox        ProductEventsOutboxConfig        `yaml:"product-events-outbox"`
+		ProductEventsOutboxMonitor ProductEventsOutboxMonitorConfig `yaml:"product-events-outbox-monitor"`
 	} `yaml:"jobs"`
 }
 
@@ -74,4 +75,9 @@ type ProductEventsOutboxConfig struct {
 	JobInterval string `yaml:"job-interval"`
 	BatchSize   int    `yaml:"batch-size"`
 	MaxRetries  int    `yaml:"max-retries"`
+}
+
+type ProductEventsOutboxMonitorConfig struct {
+	Enabled     bool   `yaml:"enabled"`
+	JobInterval string `yaml:"job-interval"`
 }

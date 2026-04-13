@@ -53,6 +53,19 @@ LIMIT $1;`
 	return records, rows.Err()
 }
 
+func (r *ProductEventsOutboxPgxRepository) GetCount(ctx context.Context, isDeadLetter bool) (int64, error) {
+	const query = `
+SELECT COUNT(*) 
+FROM outbox.product_events 
+WHERE is_dead_letter = $1;`
+
+	var count int64
+	if err := r.pool.QueryRow(ctx, query, isDeadLetter).Scan(&count); err != nil {
+		return 0, fmt.Errorf("OutboxRepository.CountPending: %w", err)
+	}
+	return count, nil
+}
+
 func (r *ProductEventsOutboxPgxRepository) DeleteBatch(ctx context.Context, recordIds []uuid.UUID) error {
 	const query = `DELETE FROM outbox.product_events WHERE record_id = ANY($1::uuid[]);`
 
