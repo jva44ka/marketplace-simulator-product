@@ -21,6 +21,9 @@ func NewPgxTracer() *PgxTracer {
 }
 
 func (t *PgxTracer) TraceQueryStart(ctx context.Context, _ *pgx.Conn, data pgx.TraceQueryStartData) context.Context {
+	if !trace.SpanFromContext(ctx).SpanContext().IsValid() {
+		return ctx
+	}
 	ctx, _ = t.tracer.Start(ctx, "db.query",
 		trace.WithAttributes(
 			attribute.String("db.statement", data.SQL),
