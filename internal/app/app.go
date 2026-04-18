@@ -56,7 +56,7 @@ func NewApp(ctx context.Context, cfg *config.Config) (*App, error) {
 		return nil, fmt.Errorf("pgxpool.ParseConfig: %w", err)
 	}
 	poolConfig.ConnConfig.Tracer = tracing.NewPgxTracer()
-	pool, err := pgxpool.NewWithConfig(context.Background(), poolConfig)
+	pool, err := pgxpool.NewWithConfig(ctx, poolConfig)
 	if err != nil {
 		return nil, fmt.Errorf("pgxpool.NewWithConfig: %w", err)
 	}
@@ -240,7 +240,8 @@ func (a *App) Run(ctx context.Context) error {
 	errGroup.Go(func() error {
 		<-ctx.Done()
 
-		shutdownCtx := context.Background()
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
 
 		a.grpcServer.GracefulStop()
 		httpShutdownErr := a.httpServer.Shutdown(shutdownCtx)
