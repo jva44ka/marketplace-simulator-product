@@ -27,7 +27,7 @@ func (s *Service) IncreaseCount(ctx context.Context, products []UpdateCount) err
 	}
 
 	newState := getProductMapSnapshot(existingProductsMap)
-	outboxRecords, err := recordBuilder.BuildRecords(newState)
+	outboxRecords, err := recordBuilder.BuildRecords(ctx, newState)
 	if err != nil {
 		return fmt.Errorf("ProductService.IncreaseCount: %w", err)
 	}

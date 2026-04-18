@@ -56,7 +56,7 @@ func (s *Service) Reserve(ctx context.Context, reserveItems []ReserveItem) (map[
 	}
 
 	newState := getProductMapSnapshot(productsMap)
-	outboxRecords, err := recordBuilder.BuildRecords(newState)
+	outboxRecords, err := recordBuilder.BuildRecords(ctx, newState)
 	if err != nil {
 		return nil, fmt.Errorf("ReservationService.Reserve: %w", err)
 	}

@@ -17,13 +17,15 @@ func main() {
 		os.Exit(1)
 	}
 
-	app, err := appPkg.NewApp(configImpl)
+	ctx := context.Background()
+
+	app, err := appPkg.NewApp(ctx, configImpl)
 	if err != nil {
 		slog.Error("failed to create app", "err", err)
 		os.Exit(1)
 	}
 
-	if err = app.Run(context.Background()); err != nil {
+	if err = app.Run(ctx); err != nil {
 		slog.Error("failed to run app", "err", err)
 		os.Exit(1)
 	}

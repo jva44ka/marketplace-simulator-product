@@ -1,9 +1,13 @@
 package outbox
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strconv"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
 
 	kafkaContracts "github.com/jva44ka/ozon-simulator-go-products/api_internal/kafka"
 	"github.com/jva44ka/ozon-simulator-go-products/internal/models"
@@ -20,7 +24,8 @@ func NewProductEventRecordBuilder(oldStates map[uint64]models.Product) *ProductE
 }
 
 func (s *ProductEventRecordBuilder) BuildRecords(
-	newStates map[uint64]models.Product) ([]models.ProductEventOutboxRecordNew, error) {
+	ctx context.Context, newStates map[uint64]models.Product) (
+	[]models.ProductEventOutboxRecordNew, error) {
 	if len(s.oldStates) != len(newStates) {
 		return nil, fmt.Errorf("oldStates and newStates are not the same length")
 	}
@@ -41,11 +46,13 @@ func (s *ProductEventRecordBuilder) BuildRecords(
 			return nil, fmt.Errorf("OutboxService.SaveProductChanged: marshal: %w", err)
 		}
 
+		headers := make(map[string]string)
+		otel.GetTextMapPropagator().Inject(ctx, propagation.MapCarrier(headers))
+
 		records = append(records, models.ProductEventOutboxRecordNew{
-			Key:  strconv.FormatUint(newState.Sku, 10),
-			Data: data,
-			//TODO: добавить проброс заголовков (авторизационных, traceId)
-			Headers: make(map[string]string),
+			Key:     strconv.FormatUint(newState.Sku, 10),
+			Data:    data,
+			Headers: headers,
 		})
 	}
 

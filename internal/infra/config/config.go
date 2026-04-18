@@ -41,6 +41,11 @@ type Config struct {
 		WriteTimeout       string   `yaml:"write-timeout"`
 	} `yaml:"kafka"`
 
+	Tracing struct {
+		Enabled      bool   `yaml:"enabled"`
+		OtlpEndpoint string `yaml:"otlp-endpoint"`
+	} `yaml:"tracing"`
+
 	Jobs struct {
 		ReservationExpiry          ReservationExpiryConfig          `yaml:"reservation-expiry"`
 		ProductEventsOutbox        ProductEventsOutboxConfig        `yaml:"product-events-outbox"`

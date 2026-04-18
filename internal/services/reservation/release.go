@@ -41,7 +41,7 @@ func (s *Service) Release(ctx context.Context, ids []int64) error {
 	}
 
 	newState := getProductMapSnapshot(productMap)
-	outboxRecords, err := recordBuilder.BuildRecords(newState)
+	outboxRecords, err := recordBuilder.BuildRecords(ctx, newState)
 	if err != nil {
 		return fmt.Errorf("ReservationService.Release: %w", err)
 	}

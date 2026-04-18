@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net"
@@ -16,10 +17,12 @@ import (
 	"github.com/jva44ka/ozon-simulator-go-products/internal/infra/database"
 	"github.com/jva44ka/ozon-simulator-go-products/internal/infra/kafka"
 	"github.com/jva44ka/ozon-simulator-go-products/internal/infra/metrics"
+	"github.com/jva44ka/ozon-simulator-go-products/internal/infra/tracing"
 	"github.com/jva44ka/ozon-simulator-go-products/internal/jobs"
 	"github.com/jva44ka/ozon-simulator-go-products/internal/services/product"
 	"github.com/jva44ka/ozon-simulator-go-products/internal/services/reservation"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -36,19 +39,38 @@ type App struct {
 	productEventsOutboxJob *jobs.ProductEventsOutboxJob
 	outboxMonitorJob       *jobs.OutboxMonitorJob
 	producer               *kafka.ProductEventsProducer
+	tracingCloser          func(context.Context) error
 }
 
-func NewApp(cfg *config.Config) (*App, error) {
-	pool, err := pgxpool.New(context.Background(), fmt.Sprintf(
+func NewApp(ctx context.Context, cfg *config.Config) (*App, error) {
+	connString := fmt.Sprintf(
 		"postgres://%s:%s@%s:%s/%s",
 		cfg.Database.User,
 		cfg.Database.Password,
 		cfg.Database.Host,
 		cfg.Database.Port,
 		cfg.Database.Name,
-	))
+	)
+	poolConfig, err := pgxpool.ParseConfig(connString)
 	if err != nil {
-		return nil, fmt.Errorf("pgxpool.New: %w", err)
+		return nil, fmt.Errorf("pgxpool.ParseConfig: %w", err)
+	}
+	poolConfig.ConnConfig.Tracer = tracing.NewPgxTracer()
+	pool, err := pgxpool.NewWithConfig(ctx, poolConfig)
+	if err != nil {
+		return nil, fmt.Errorf("pgxpool.NewWithConfig: %w", err)
+	}
+
+	var tracingCloser func(context.Context) error
+	if cfg.Tracing.Enabled {
+		tracingCloser, err = tracing.InitTracer(ctx, "products", cfg.Tracing.OtlpEndpoint)
+		if err != nil {
+			return nil, fmt.Errorf("tracing.InitTracer: %w", err)
+		}
+	} else {
+		tracingCloser = func(context.Context) error {
+			return nil
+		}
 	}
 
 	//TODO: вынести парсинг опций в конкретные фабричные методы соответствующих сущностей
@@ -109,6 +131,7 @@ func NewApp(cfg *config.Config) (*App, error) {
 		outboxMonitorInterval)
 
 	grpcServer := grpc.NewServer(
+		grpc.StatsHandler(otelgrpc.NewServerHandler()),
 		grpc.ChainUnaryInterceptor(
 			middleware.Panic,
 			middleware.ResponseTime(metrics.NewRequestMetrics()),
@@ -122,7 +145,6 @@ func NewApp(cfg *config.Config) (*App, error) {
 
 	pb.RegisterProductsServer(grpcServer, grpcService)
 
-	ctx := context.Background()
 	mux := runtime.NewServeMux(
 		runtime.WithIncomingHeaderMatcher(
 			func(header string) (string, bool) {
@@ -174,6 +196,7 @@ func NewApp(cfg *config.Config) (*App, error) {
 		productEventsOutboxJob: outboxJob,
 		outboxMonitorJob:       outboxMonitorJob,
 		producer:               producer,
+		tracingCloser:          tracingCloser,
 	}, nil
 }
 
@@ -216,8 +239,15 @@ func (a *App) Run(ctx context.Context) error {
 
 	errGroup.Go(func() error {
 		<-ctx.Done()
-		a.grpcServer.Stop()
-		return a.httpServer.Shutdown(ctx)
+
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		a.grpcServer.GracefulStop()
+		httpShutdownErr := a.httpServer.Shutdown(shutdownCtx)
+		tracingCloseErr := a.tracingCloser(shutdownCtx)
+
+		return errors.Join(httpShutdownErr, tracingCloseErr)
 	})
 
 	return errGroup.Wait()
