@@ -12,15 +12,15 @@ import (
 
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/jva44ka/ozon-simulator-go-products/internal/app/middleware"
-	"github.com/jva44ka/ozon-simulator-go-products/internal/infra/config"
-	"github.com/jva44ka/ozon-simulator-go-products/internal/infra/database"
-	"github.com/jva44ka/ozon-simulator-go-products/internal/infra/kafka"
-	"github.com/jva44ka/ozon-simulator-go-products/internal/infra/metrics"
-	"github.com/jva44ka/ozon-simulator-go-products/internal/infra/tracing"
-	"github.com/jva44ka/ozon-simulator-go-products/internal/jobs"
-	"github.com/jva44ka/ozon-simulator-go-products/internal/services/product"
-	"github.com/jva44ka/ozon-simulator-go-products/internal/services/reservation"
+	"github.com/jva44ka/marketplace-simulator-product/internal/app/middleware"
+	"github.com/jva44ka/marketplace-simulator-product/internal/infra/config"
+	"github.com/jva44ka/marketplace-simulator-product/internal/infra/database"
+	"github.com/jva44ka/marketplace-simulator-product/internal/infra/kafka"
+	"github.com/jva44ka/marketplace-simulator-product/internal/infra/metrics"
+	"github.com/jva44ka/marketplace-simulator-product/internal/infra/tracing"
+	"github.com/jva44ka/marketplace-simulator-product/internal/jobs"
+	"github.com/jva44ka/marketplace-simulator-product/internal/services/product"
+	"github.com/jva44ka/marketplace-simulator-product/internal/services/reservation"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"golang.org/x/sync/errgroup"
@@ -28,7 +28,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/reflection"
 
-	pb "github.com/jva44ka/ozon-simulator-go-products/internal/app/pb/ozon-simulator-go-products/api/v1/proto"
+	pb "github.com/jva44ka/marketplace-simulator-product/internal/app/pb/marketplace-simulator-product/api/v1/proto"
 )
 
 type App struct {

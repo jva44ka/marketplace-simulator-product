@@ -9,8 +9,8 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
 
-	kafkaContracts "github.com/jva44ka/ozon-simulator-go-products/api_internal/kafka"
-	"github.com/jva44ka/ozon-simulator-go-products/internal/models"
+	kafkaContracts "github.com/jva44ka/marketplace-simulator-product/api_internal/kafka"
+	"github.com/jva44ka/marketplace-simulator-product/internal/models"
 )
 
 type ProductEventRecordBuilder struct {

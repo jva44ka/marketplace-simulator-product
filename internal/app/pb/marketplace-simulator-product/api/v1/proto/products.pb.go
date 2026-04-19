@@ -665,7 +665,7 @@ const file_api_v1_products_proto_rawDesc = "" +
 	"\x06x-auth\x12\f\b\x02\x1a\x06x-auth \x02b\f\n" +
 	"\n" +
 	"\n" +
-	"\x06x-auth\x12\x00Z0ozon-simulator-go-products/api/v1/proto;productsb\x06proto3"
+	"\x06x-auth\x12\x00Z0marketplace-simulator-product/api/v1/proto;productsb\x06proto3"
 
 var (
 	file_api_v1_products_proto_rawDescOnce sync.Once

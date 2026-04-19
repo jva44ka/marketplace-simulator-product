@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/jva44ka/ozon-simulator-go-products/internal/models"
+	"github.com/jva44ka/marketplace-simulator-product/internal/models"
 )
 
 type ReservationRepository interface {

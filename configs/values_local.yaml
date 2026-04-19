@@ -11,7 +11,7 @@ database:
   password: 1234
   host: localhost
   port: 5432
-  name: ozon_simulator_go_products
+  name: marketplace_simulator_product
 
 authorization:
   enabled: false

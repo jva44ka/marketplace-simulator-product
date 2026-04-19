@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	kafkaContracts "github.com/jva44ka/ozon-simulator-go-products/api_internal/kafka"
+	kafkaContracts "github.com/jva44ka/marketplace-simulator-product/api_internal/kafka"
 )
 
 type ProductEventsProducer struct {

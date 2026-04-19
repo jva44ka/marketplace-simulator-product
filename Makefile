@@ -1,7 +1,7 @@
 .PHONY: install-goose
 
 up-migrations:
-	goose -dir migrations postgres "postgresql://postgres:1234@127.0.0.1:5432/ozon_simulator_go_products?sslmode=disable" up
+	goose -dir migrations postgres "postgresql://postgres:1234@127.0.0.1:5432/marketplace_simulator_product?sslmode=disable" up
 
 proto-generate:
 	protoc \
@@ -16,11 +16,11 @@ proto-generate:
       api/v1/products.proto
 
 docker-build-latest:
-	docker build -t jva44ka/ozon-simulator-go-products:latest .
+	docker build -t jva44ka/marketplace-simulator-product:latest .
 docker-push-latest:
-	docker push jva44ka/ozon-simulator-go-products:latest
+	docker push jva44ka/marketplace-simulator-product:latest
 
 docker-build-migrator:
-	docker build --target migrator -t jva44ka/ozon-simulator-go-products:migrator .
+	docker build --target migrator -t jva44ka/marketplace-simulator-product:migrator .
 docker-push-migrator:
-	docker push jva44ka/ozon-simulator-go-products:migrator
+	docker push jva44ka/marketplace-simulator-product:migrator

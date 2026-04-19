@@ -1,8 +1,8 @@
 package reservation
 
 import (
-	"github.com/jva44ka/ozon-simulator-go-products/internal/models"
-	"github.com/jva44ka/ozon-simulator-go-products/internal/services"
+	"github.com/jva44ka/marketplace-simulator-product/internal/models"
+	"github.com/jva44ka/marketplace-simulator-product/internal/services"
 )
 
 type Service struct {

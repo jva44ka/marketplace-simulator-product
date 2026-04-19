@@ -9,9 +9,9 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	kafkaContracts "github.com/jva44ka/ozon-simulator-go-products/api_internal/kafka"
-	"github.com/jva44ka/ozon-simulator-go-products/internal/models"
-	"github.com/jva44ka/ozon-simulator-go-products/internal/services"
+	kafkaContracts "github.com/jva44ka/marketplace-simulator-product/api_internal/kafka"
+	"github.com/jva44ka/marketplace-simulator-product/internal/models"
+	"github.com/jva44ka/marketplace-simulator-product/internal/services"
 )
 
 type DBManager interface {

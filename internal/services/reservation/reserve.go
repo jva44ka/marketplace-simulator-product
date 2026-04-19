@@ -5,9 +5,9 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/jva44ka/ozon-simulator-go-products/internal/errors"
-	"github.com/jva44ka/ozon-simulator-go-products/internal/models"
-	"github.com/jva44ka/ozon-simulator-go-products/internal/services/outbox"
+	"github.com/jva44ka/marketplace-simulator-product/internal/errors"
+	"github.com/jva44ka/marketplace-simulator-product/internal/models"
+	"github.com/jva44ka/marketplace-simulator-product/internal/services/outbox"
 )
 
 type ReserveItem struct {

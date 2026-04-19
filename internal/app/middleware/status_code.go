@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	errors2 "github.com/jva44ka/ozon-simulator-go-products/internal/errors"
+	errors2 "github.com/jva44ka/marketplace-simulator-product/internal/errors"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

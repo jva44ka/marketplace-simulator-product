@@ -5,7 +5,7 @@ package products;
 import "google/api/annotations.proto";
 import "protoc-gen-openapiv2/options/annotations.proto";
 
-option go_package = "ozon-simulator-go-products/api/v1/proto;products";
+option go_package = "marketplace-simulator-product/api/v1/proto;products";
 
 option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_swagger) = {
   info: {

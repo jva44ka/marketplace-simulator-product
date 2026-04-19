@@ -1,4 +1,4 @@
-module github.com/jva44ka/ozon-simulator-go-products
+module github.com/jva44ka/marketplace-simulator-product
 
 go 1.25.0
 

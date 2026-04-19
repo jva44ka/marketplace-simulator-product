@@ -4,7 +4,7 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/jva44ka/ozon-simulator-go-products/internal/infra/config"
+	"github.com/jva44ka/marketplace-simulator-product/internal/infra/config"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

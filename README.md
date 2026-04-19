@@ -1,4 +1,4 @@
-# ozon-simulator-go-products
+# marketplace-simulator-product
 
 Микросервис управления товарами — сервис в рамках учебного проекта «Симулятор Ozon».
 
@@ -96,7 +96,7 @@ database:
   password: 1234
   host: localhost
   port: 5432
-  name: ozon_simulator_go_products
+  name: marketplace_simulator_product
 
 authorization:
   enabled: false
@@ -131,7 +131,7 @@ reservation:
 make up-migrations
 ```
 
-> По умолчанию подключается к `postgresql://postgres:1234@127.0.0.1:5432/ozon_simulator_go_products`
+> По умолчанию подключается к `postgresql://postgres:1234@127.0.0.1:5432/marketplace_simulator_product`
 
 ### Сервер
 

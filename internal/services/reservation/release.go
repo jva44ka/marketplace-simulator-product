@@ -7,8 +7,8 @@ import (
 	"slices"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/jva44ka/ozon-simulator-go-products/internal/models"
-	"github.com/jva44ka/ozon-simulator-go-products/internal/services/outbox"
+	"github.com/jva44ka/marketplace-simulator-product/internal/models"
+	"github.com/jva44ka/marketplace-simulator-product/internal/services/outbox"
 )
 
 func (s *Service) Release(ctx context.Context, ids []int64) error {

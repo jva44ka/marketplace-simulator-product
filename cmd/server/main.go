@@ -6,8 +6,8 @@ import (
 	"log/slog"
 	"os"
 
-	appPkg "github.com/jva44ka/ozon-simulator-go-products/internal/app"
-	"github.com/jva44ka/ozon-simulator-go-products/internal/infra/config"
+	appPkg "github.com/jva44ka/marketplace-simulator-product/internal/app"
+	"github.com/jva44ka/marketplace-simulator-product/internal/infra/config"
 )
 
 func main() {

@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	pb "github.com/jva44ka/ozon-simulator-go-products/internal/app/pb/ozon-simulator-go-products/api/v1/proto"
-	"github.com/jva44ka/ozon-simulator-go-products/internal/services/product"
-	"github.com/jva44ka/ozon-simulator-go-products/internal/services/reservation"
+	pb "github.com/jva44ka/marketplace-simulator-product/internal/app/pb/marketplace-simulator-product/api/v1/proto"
+	"github.com/jva44ka/marketplace-simulator-product/internal/services/product"
+	"github.com/jva44ka/marketplace-simulator-product/internal/services/reservation"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

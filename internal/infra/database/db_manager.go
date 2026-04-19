@@ -5,8 +5,8 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/jva44ka/ozon-simulator-go-products/internal/infra/database/repositories"
-	"github.com/jva44ka/ozon-simulator-go-products/internal/services"
+	"github.com/jva44ka/marketplace-simulator-product/internal/infra/database/repositories"
+	"github.com/jva44ka/marketplace-simulator-product/internal/services"
 )
 
 type DBManager struct {

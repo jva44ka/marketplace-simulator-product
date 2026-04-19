@@ -8,8 +8,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/jva44ka/ozon-simulator-go-products/internal/models"
-	"github.com/jva44ka/ozon-simulator-go-products/internal/services"
+	"github.com/jva44ka/marketplace-simulator-product/internal/models"
+	"github.com/jva44ka/marketplace-simulator-product/internal/services"
 )
 
 type ProductEventsOutboxPgxRepository struct {

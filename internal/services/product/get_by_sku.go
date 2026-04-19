@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/jva44ka/ozon-simulator-go-products/internal/errors"
-	"github.com/jva44ka/ozon-simulator-go-products/internal/models"
+	"github.com/jva44ka/marketplace-simulator-product/internal/errors"
+	"github.com/jva44ka/marketplace-simulator-product/internal/models"
 )
 
 func (s *Service) GetBySku(ctx context.Context, sku uint64) (*models.Product, error) {
