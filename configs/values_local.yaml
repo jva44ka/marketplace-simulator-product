@@ -21,6 +21,10 @@ logging:
   log-request-body: true
   log-response-body: true
 
+tracing:
+  enabled: true
+  otlp-endpoint: localhost:4317
+
 kafka:
   brokers:
     - localhost:9092
