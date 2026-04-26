@@ -46,6 +46,12 @@ type Config struct {
 		OtlpEndpoint string `yaml:"otlp-endpoint"`
 	} `yaml:"tracing"`
 
+	RateLimiter struct {
+		Enabled bool    `yaml:"enabled"`
+		RPS     float64 `yaml:"rps"`
+		Burst   int     `yaml:"burst"`
+	} `yaml:"rate-limiter"`
+
 	Jobs struct {
 		ReservationExpiry          ReservationExpiryConfig          `yaml:"reservation-expiry"`
 		ProductEventsOutbox        ProductEventsOutboxConfig        `yaml:"product-events-outbox"`

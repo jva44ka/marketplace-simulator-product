@@ -21,6 +21,11 @@ logging:
   log-request-body: true
   log-response-body: true
 
+rate-limiter:
+  enabled: true
+  rps: 100
+  burst: 20
+
 tracing:
   enabled: true
   otlp-endpoint: localhost:4317

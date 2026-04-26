@@ -24,6 +24,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"golang.org/x/sync/errgroup"
+	"golang.org/x/time/rate"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/reflection"
@@ -130,16 +131,22 @@ func NewApp(ctx context.Context, cfg *config.Config) (*App, error) {
 		cfg.Jobs.ProductEventsOutboxMonitor.Enabled,
 		outboxMonitorInterval)
 
+	interceptors := []grpc.UnaryServerInterceptor{
+		middleware.Panic,
+		middleware.ResponseTime(metrics.NewRequestMetrics()),
+		middleware.Logger(cfg),
+		middleware.StatusCode,
+		middleware.Auth(cfg),
+		middleware.Validate,
+	}
+	if cfg.RateLimiter.Enabled {
+		limiter := rate.NewLimiter(rate.Limit(cfg.RateLimiter.RPS), cfg.RateLimiter.Burst)
+		interceptors = append([]grpc.UnaryServerInterceptor{middleware.RateLimit(limiter)}, interceptors...)
+	}
+
 	grpcServer := grpc.NewServer(
 		grpc.StatsHandler(otelgrpc.NewServerHandler()),
-		grpc.ChainUnaryInterceptor(
-			middleware.Panic,
-			middleware.ResponseTime(metrics.NewRequestMetrics()),
-			middleware.Logger(cfg),
-			middleware.StatusCode,
-			middleware.Auth(cfg),
-			middleware.Validate,
-		),
+		grpc.ChainUnaryInterceptor(interceptors...),
 	)
 	grpcService := NewGrpcService(productService, reservationService)
 
