@@ -38,7 +38,7 @@ type App struct {
 	cfg                    *config.Config
 	reservationExpiryJob   *jobs.ReservationExpiryJob
 	productEventsOutboxJob *jobs.ProductEventsOutboxJob
-	outboxMonitorJob       *jobs.OutboxMonitorJob
+	metricCollectorJob     *jobs.MetricCollectorJob
 	producer               *kafka.ProductEventsProducer
 	tracingCloser          func(context.Context) error
 }
@@ -124,10 +124,11 @@ func NewApp(ctx context.Context, cfg *config.Config) (*App, error) {
 		cfg.Jobs.ProductEventsOutbox.BatchSize,
 		int32(cfg.Jobs.ProductEventsOutbox.MaxRetries))
 
-	outboxMonitorMetrics := metrics.NewOutboxMonitorMetrics()
-	outboxMonitorJob := jobs.NewOutboxMonitorJob(
+	metricCollectorMetrics := metrics.NewMetricCollectorMetrics()
+	metricCollectorJob := jobs.NewMetricCollectorJob(
 		db.ProductEventsOutboxRepo(),
-		outboxMonitorMetrics,
+		pool,
+		metricCollectorMetrics,
 		cfg.Jobs.ProductEventsOutboxMonitor.Enabled,
 		outboxMonitorInterval)
 
@@ -201,7 +202,7 @@ func NewApp(ctx context.Context, cfg *config.Config) (*App, error) {
 		cfg:                    cfg,
 		reservationExpiryJob:   reservationExpiryJob,
 		productEventsOutboxJob: outboxJob,
-		outboxMonitorJob:       outboxMonitorJob,
+		metricCollectorJob:     metricCollectorJob,
 		producer:               producer,
 		tracingCloser:          tracingCloser,
 	}, nil
@@ -230,8 +231,8 @@ func (a *App) Run(ctx context.Context) error {
 	})
 
 	errGroup.Go(func() error {
-		slog.Info("starting outbox monitor job")
-		a.outboxMonitorJob.Run(ctx)
+		slog.Info("starting metric collector job")
+		a.metricCollectorJob.Run(ctx)
 
 		return nil
 	})

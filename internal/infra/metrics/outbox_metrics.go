@@ -17,13 +17,15 @@ type OutboxMetrics struct {
 func NewOutboxMetrics() *OutboxMetrics {
 	return &OutboxMetrics{
 		recordsProcessed: promauto.NewCounterVec(prometheus.CounterOpts{
-			Name: "products_outbox_records_processed_total",
-			Help: "Total number of outbox records processed",
+			Name:        "outbox_records_processed_total",
+			Help:        "Total number of outbox records processed",
+			ConstLabels: prometheus.Labels{"service": "product"},
 		}, []string{"status"}),
 		tickDuration: promauto.NewHistogram(prometheus.HistogramOpts{
-			Name:    "products_outbox_tick_duration_seconds",
-			Help:    "Duration of outbox job tick in seconds",
-			Buckets: prometheus.DefBuckets,
+			Name:        "outbox_tick_duration_seconds",
+			Help:        "Duration of outbox job tick in seconds",
+			Buckets:     prometheus.DefBuckets,
+			ConstLabels: prometheus.Labels{"service": "product"},
 		}),
 		kafkaPublishDuration: promauto.NewHistogram(prometheus.HistogramOpts{
 			Name:    "products_outbox_kafka_publish_duration_seconds",
@@ -31,9 +33,10 @@ func NewOutboxMetrics() *OutboxMetrics {
 			Buckets: prometheus.DefBuckets,
 		}),
 		recordAge: promauto.NewHistogram(prometheus.HistogramOpts{
-			Name:    "products_outbox_record_age_seconds",
-			Help:    "Age of outbox record at processing time in seconds",
-			Buckets: []float64{0.1, 0.5, 1, 2, 5, 10, 30, 60, 120, 300},
+			Name:        "outbox_record_age_seconds",
+			Help:        "Age of outbox record at processing time in seconds",
+			Buckets:     []float64{0.1, 0.5, 1, 2, 5, 10, 30, 60, 120, 300},
+			ConstLabels: prometheus.Labels{"service": "product"},
 		}),
 	}
 }

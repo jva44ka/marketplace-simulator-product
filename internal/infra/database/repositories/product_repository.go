@@ -3,6 +3,7 @@ package repositories
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -12,7 +13,7 @@ import (
 )
 
 type RepositoryMetrics interface {
-	ReportRequest(method, status string)
+	ReportRequest(method, status string, duration time.Duration)
 	ReportOptimisticLockFailure()
 }
 
@@ -60,9 +61,10 @@ SELECT sku, price, name, count, reserved_count, xmin
 FROM products
 WHERE sku = ANY($1);`
 
+	start := time.Now()
 	rows, err := r.pool.Query(ctx, query, skus)
 	if err != nil {
-		r.metrics.ReportRequest("GetBySkus", "error")
+		r.metrics.ReportRequest("GetBySkus", "error", time.Since(start))
 		return nil, fmt.Errorf("ProductRepository.GetBySkus: %w", err)
 	}
 	defer rows.Close()
@@ -71,7 +73,7 @@ WHERE sku = ANY($1);`
 	for rows.Next() {
 		var row productRow
 		if err = rows.Scan(&row.sku, &row.price, &row.name, &row.count, &row.reservedCount, &row.xmin); err != nil {
-			r.metrics.ReportRequest("GetBySkus", "error")
+			r.metrics.ReportRequest("GetBySkus", "error", time.Since(start))
 			return nil, fmt.Errorf("ProductRepository.GetBySkus: %w", err)
 		}
 		products = append(products, &models.Product{
@@ -84,18 +86,19 @@ WHERE sku = ANY($1);`
 		})
 	}
 
-	r.metrics.ReportRequest("GetBySkus", "success")
+	r.metrics.ReportRequest("GetBySkus", "success", time.Since(start))
 	return products, nil
 }
 
 func (r *ProductPgxTxRepository) Update(ctx context.Context, products []*models.Product) error {
 	const query = `
 UPDATE products
-SET 
-    count = $3, 
+SET
+    count = $3,
     reserved_count = $4
 WHERE sku = $1 AND xmin = $2;`
 
+	start := time.Now()
 	batch := &pgx.Batch{}
 	for _, p := range products {
 		batch.Queue(query, int64(p.Sku), p.TransactionId, p.Count, p.ReservedCount)
@@ -114,11 +117,11 @@ WHERE sku = $1 AND xmin = $2;`
 	}
 
 	if affected != int64(len(products)) {
-		r.metrics.ReportRequest("Update", "error")
+		r.metrics.ReportRequest("Update", "error", time.Since(start))
 		r.metrics.ReportOptimisticLockFailure()
 		return fmt.Errorf("ProductRepository.Update: %w", appErrors.NewOptimisticLockError())
 	}
 
-	r.metrics.ReportRequest("Update", "success")
+	r.metrics.ReportRequest("Update", "success", time.Since(start))
 	return nil
 }
