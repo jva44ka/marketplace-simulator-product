@@ -12,7 +12,7 @@ import (
 )
 
 type ReservationMetrics interface {
-	ReportRequest(method, status string)
+	ReportRequest(method, status string, duration time.Duration)
 }
 
 type ReservationPgxRepository struct {
@@ -39,31 +39,33 @@ INSERT INTO reservations (sku, count)
 VALUES ($1, $2)
 RETURNING id, sku, count, created_at`
 
+	start := time.Now()
 	var reservation models.Reservation
 	var skuInt int64
 	var countInt int32
 	err := r.tx.QueryRow(ctx, query, int64(sku), int32(count)).Scan(&reservation.Id, &skuInt, &countInt, &reservation.CreatedAt)
 	if err != nil {
-		r.metrics.ReportRequest("InsertReservation", "error")
+		r.metrics.ReportRequest("InsertReservation", "error", time.Since(start))
 		return models.Reservation{}, fmt.Errorf("PgxRepository.Insert: %w", err)
 	}
 	reservation.Sku = uint64(skuInt)
 	reservation.Count = uint32(countInt)
 
-	r.metrics.ReportRequest("InsertReservation", "success")
+	r.metrics.ReportRequest("InsertReservation", "success", time.Since(start))
 	return reservation, nil
 }
 
 func (r *ReservationPgxTxRepository) DeleteByIds(ctx context.Context, ids []int64) error {
 	const query = `DELETE FROM reservations WHERE id = ANY($1)`
 
+	start := time.Now()
 	_, err := r.tx.Exec(ctx, query, ids)
 	if err != nil {
-		r.metrics.ReportRequest("DeleteReservationsByIds", "error")
+		r.metrics.ReportRequest("DeleteReservationsByIds", "error", time.Since(start))
 		return fmt.Errorf("PgxRepository.DeleteByIds: %w", err)
 	}
 
-	r.metrics.ReportRequest("DeleteReservationsByIds", "success")
+	r.metrics.ReportRequest("DeleteReservationsByIds", "success", time.Since(start))
 	return nil
 }
 
@@ -73,9 +75,10 @@ SELECT id, sku, count, created_at
 FROM reservations
 WHERE id = ANY($1)`
 
+	start := time.Now()
 	rows, err := r.pool.Query(ctx, query, ids)
 	if err != nil {
-		r.metrics.ReportRequest("GetReservationsByIds", "error")
+		r.metrics.ReportRequest("GetReservationsByIds", "error", time.Since(start))
 		return nil, fmt.Errorf("PgxRepository.GetByIds: %w", err)
 	}
 	defer rows.Close()
@@ -86,7 +89,7 @@ WHERE id = ANY($1)`
 		var sku int64
 		var count int32
 		if err = rows.Scan(&reservation.Id, &sku, &count, &reservation.CreatedAt); err != nil {
-			r.metrics.ReportRequest("GetReservationsByIds", "error")
+			r.metrics.ReportRequest("GetReservationsByIds", "error", time.Since(start))
 			return nil, fmt.Errorf("PgxRepository.GetByIds: %w", err)
 		}
 		reservation.Sku = uint64(sku)
@@ -94,7 +97,7 @@ WHERE id = ANY($1)`
 		result = append(result, reservation)
 	}
 
-	r.metrics.ReportRequest("GetReservationsByIds", "success")
+	r.metrics.ReportRequest("GetReservationsByIds", "success", time.Since(start))
 	return result, nil
 }
 
@@ -104,9 +107,10 @@ SELECT id, sku, count, created_at
 FROM reservations
 WHERE created_at < $1`
 
+	start := time.Now()
 	rows, err := r.pool.Query(ctx, query, cutoff)
 	if err != nil {
-		r.metrics.ReportRequest("GetExpiredReservations", "error")
+		r.metrics.ReportRequest("GetExpiredReservations", "error", time.Since(start))
 		return nil, fmt.Errorf("PgxRepository.GetExpired: %w", err)
 	}
 	defer rows.Close()
@@ -117,7 +121,7 @@ WHERE created_at < $1`
 		var sku int64
 		var count int32
 		if err = rows.Scan(&rv.Id, &sku, &count, &rv.CreatedAt); err != nil {
-			r.metrics.ReportRequest("GetExpiredReservations", "error")
+			r.metrics.ReportRequest("GetExpiredReservations", "error", time.Since(start))
 			return nil, fmt.Errorf("PgxRepository.GetExpired: %w", err)
 		}
 		rv.Sku = uint64(sku)
@@ -125,6 +129,6 @@ WHERE created_at < $1`
 		result = append(result, rv)
 	}
 
-	r.metrics.ReportRequest("GetExpiredReservations", "success")
+	r.metrics.ReportRequest("GetExpiredReservations", "success", time.Since(start))
 	return result, nil
 }
