@@ -85,9 +85,14 @@ func NewApp(ctx context.Context, cfg *config.Config) (*App, error) {
 		return nil, fmt.Errorf("parse reservation.job-interval: %w", err)
 	}
 
-	outboxJobInterval, err := time.ParseDuration(cfg.Jobs.ProductEventsOutbox.JobInterval)
+	outboxIdleInterval, err := time.ParseDuration(cfg.Jobs.ProductEventsOutbox.IdleInterval)
 	if err != nil {
-		return nil, fmt.Errorf("parse product-events-outbox.job-interval: %w", err)
+		return nil, fmt.Errorf("parse product-events-outbox.idle-interval: %w", err)
+	}
+
+	outboxActiveInterval, err := time.ParseDuration(cfg.Jobs.ProductEventsOutbox.ActiveInterval)
+	if err != nil {
+		return nil, fmt.Errorf("parse product-events-outbox.active-interval: %w", err)
 	}
 
 	outboxMonitorInterval, err := time.ParseDuration(cfg.Jobs.ProductEventsOutboxMonitor.JobInterval)
@@ -120,7 +125,8 @@ func NewApp(ctx context.Context, cfg *config.Config) (*App, error) {
 		producer,
 		outboxMetrics,
 		cfg.Jobs.ProductEventsOutbox.Enabled,
-		outboxJobInterval,
+		outboxIdleInterval,
+		outboxActiveInterval,
 		cfg.Jobs.ProductEventsOutbox.BatchSize,
 		int32(cfg.Jobs.ProductEventsOutbox.MaxRetries))
 

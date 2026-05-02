@@ -82,10 +82,11 @@ type ReservationExpiryConfig struct {
 }
 
 type ProductEventsOutboxConfig struct {
-	Enabled     bool   `yaml:"enabled"`
-	JobInterval string `yaml:"job-interval"`
-	BatchSize   int    `yaml:"batch-size"`
-	MaxRetries  int    `yaml:"max-retries"`
+	Enabled        bool   `yaml:"enabled"`
+	IdleInterval   string `yaml:"idle-interval"`   // пауза когда очередь пуста
+	ActiveInterval string `yaml:"active-interval"` // пауза когда в прошлом тике были записи (0 = сразу)
+	BatchSize      int    `yaml:"batch-size"`
+	MaxRetries     int    `yaml:"max-retries"`
 }
 
 type ProductEventsOutboxMonitorConfig struct {
