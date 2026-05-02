@@ -3,7 +3,6 @@ package jobs
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"log/slog"
 	"time"
 
@@ -31,13 +30,14 @@ type OutboxJobMetrics interface {
 }
 
 type ProductEventsOutboxJob struct {
-	db            DBManager
-	producer      OutboxKafkaProducer
-	metrics       OutboxJobMetrics
-	enabled       bool
-	interval      time.Duration
-	batchSize     int
-	maxRetryCount int32
+	db             DBManager
+	producer       OutboxKafkaProducer
+	metrics        OutboxJobMetrics
+	enabled        bool
+	idleInterval   time.Duration
+	activeInterval time.Duration
+	batchSize      int
+	maxRetryCount  int32
 }
 
 func NewProductEventsOutboxJob(
@@ -45,18 +45,20 @@ func NewProductEventsOutboxJob(
 	producer OutboxKafkaProducer,
 	metrics OutboxJobMetrics,
 	enabled bool,
-	interval time.Duration,
+	idleInterval time.Duration,
+	activeInterval time.Duration,
 	batchSize int,
 	maxRetries int32,
 ) *ProductEventsOutboxJob {
 	return &ProductEventsOutboxJob{
-		db:            db,
-		producer:      producer,
-		metrics:       metrics,
-		enabled:       enabled,
-		interval:      interval,
-		batchSize:     batchSize,
-		maxRetryCount: maxRetries,
+		db:             db,
+		producer:       producer,
+		metrics:        metrics,
+		enabled:        enabled,
+		idleInterval:   idleInterval,
+		activeInterval: activeInterval,
+		batchSize:      batchSize,
+		maxRetryCount:  maxRetries,
 	}
 }
 
@@ -66,22 +68,24 @@ func (j *ProductEventsOutboxJob) Run(ctx context.Context) {
 		return
 	}
 
-	ticker := time.NewTicker(j.interval)
-	defer ticker.Stop()
+	lastProcessed := 0
 
 	for {
+		interval := j.idleInterval
+		if lastProcessed > 0 {
+			interval = j.activeInterval
+		}
+
 		select {
 		case <-ctx.Done():
 			return
-		case <-ticker.C:
-			if err := j.tick(ctx); err != nil {
-				slog.ErrorContext(ctx, "product events outbox job failed", "err", err)
-			}
+		case <-time.After(interval):
+			lastProcessed = j.tick(ctx)
 		}
 	}
 }
 
-func (j *ProductEventsOutboxJob) tick(ctx context.Context) error {
+func (j *ProductEventsOutboxJob) tick(ctx context.Context) int {
 	tickStart := time.Now()
 	defer func() {
 		j.metrics.ReportTickDuration(time.Since(tickStart))
@@ -89,11 +93,12 @@ func (j *ProductEventsOutboxJob) tick(ctx context.Context) error {
 
 	outboxRecords, err := j.db.ProductEventsOutboxRepo().GetPending(ctx, j.batchSize)
 	if err != nil {
-		return fmt.Errorf("GetPending: %w", err)
+		slog.ErrorContext(ctx, "ProductEventsOutboxJob: GetPending failed", "err", err)
+		return 0
 	}
 
 	if len(outboxRecords) == 0 {
-		return nil
+		return 0
 	}
 
 	for _, record := range outboxRecords {
@@ -145,7 +150,7 @@ func (j *ProductEventsOutboxJob) tick(ctx context.Context) error {
 	j.metrics.ReportProcessed("failed", failedCount)
 	j.metrics.ReportProcessed("dead_letter", deadLetterCount)
 
-	return nil
+	return len(outboxRecords)
 }
 
 type ProcessBatchResult struct {
