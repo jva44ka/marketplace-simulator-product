@@ -16,6 +16,10 @@ func (s *Service) Confirm(ctx context.Context, ids []int64) error {
 		return fmt.Errorf("ReservationService.Confirm: %w", err)
 	}
 
+	if len(reservations) == 0 {
+		return nil // already processed, idempotent no-op
+	}
+
 	reservationSumsBySku := make(map[uint64]uint32, len(reservations))
 	for _, reservation := range reservations {
 		reservationSumsBySku[reservation.Sku] += reservation.Count
