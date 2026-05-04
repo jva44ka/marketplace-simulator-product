@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	kafkaContracts "github.com/jva44ka/marketplace-simulator-product/api_internal/kafka"
+	"github.com/jva44ka/marketplace-simulator-product/internal/infra/config"
 	"github.com/jva44ka/marketplace-simulator-product/internal/models"
 	"github.com/jva44ka/marketplace-simulator-product/internal/services"
 )
@@ -30,68 +31,72 @@ type OutboxJobMetrics interface {
 }
 
 type ProductEventsOutboxJob struct {
-	db             DBManager
-	producer       OutboxKafkaProducer
-	metrics        OutboxJobMetrics
-	enabled        bool
-	idleInterval   time.Duration
-	activeInterval time.Duration
-	batchSize      int
-	maxRetryCount  int32
+	db       DBManager
+	producer OutboxKafkaProducer
+	metrics  OutboxJobMetrics
+	cfgStore *config.ConfigStore
 }
 
 func NewProductEventsOutboxJob(
 	db DBManager,
 	producer OutboxKafkaProducer,
 	metrics OutboxJobMetrics,
-	enabled bool,
-	idleInterval time.Duration,
-	activeInterval time.Duration,
-	batchSize int,
-	maxRetries int32,
+	cfgStore *config.ConfigStore,
 ) *ProductEventsOutboxJob {
 	return &ProductEventsOutboxJob{
-		db:             db,
-		producer:       producer,
-		metrics:        metrics,
-		enabled:        enabled,
-		idleInterval:   idleInterval,
-		activeInterval: activeInterval,
-		batchSize:      batchSize,
-		maxRetryCount:  maxRetries,
+		db:       db,
+		producer: producer,
+		metrics:  metrics,
+		cfgStore: cfgStore,
 	}
 }
 
 func (j *ProductEventsOutboxJob) Run(ctx context.Context) {
-	if !j.enabled {
-		slog.InfoContext(ctx, "ProductEventsOutboxJob disabled, shutting down")
-		return
-	}
-
 	lastProcessed := 0
 
 	for {
-		interval := j.idleInterval
+		cfg := j.cfgStore.Load().Jobs.ProductEventsOutbox
+
+		//todo рефакторинг, чтобы не парсить на каждую итерацию
+		idleInterval, err := time.ParseDuration(cfg.IdleInterval)
+		if err != nil {
+			idleInterval = 100 * time.Millisecond
+			slog.Warn("ProductEventsOutboxJob: invalid idle-interval, using 100ms", "err", err)
+		}
+
+		activeInterval, err := time.ParseDuration(cfg.ActiveInterval)
+		if err != nil {
+			activeInterval = 0
+			slog.Warn("ProductEventsOutboxJob: invalid active-interval, using 0", "err", err)
+		}
+
+		interval := idleInterval
 		if lastProcessed > 0 {
-			interval = j.activeInterval
+			interval = activeInterval
 		}
 
 		select {
 		case <-ctx.Done():
 			return
 		case <-time.After(interval):
-			lastProcessed = j.tick(ctx)
 		}
+
+		if !cfg.Enabled {
+			lastProcessed = 0
+			continue
+		}
+
+		lastProcessed = j.tick(ctx, cfg.BatchSize, int32(cfg.MaxRetries))
 	}
 }
 
-func (j *ProductEventsOutboxJob) tick(ctx context.Context) int {
+func (j *ProductEventsOutboxJob) tick(ctx context.Context, batchSize int, maxRetryCount int32) int {
 	tickStart := time.Now()
 	defer func() {
 		j.metrics.ReportTickDuration(time.Since(tickStart))
 	}()
 
-	outboxRecords, err := j.db.ProductEventsOutboxRepo().GetPending(ctx, j.batchSize)
+	outboxRecords, err := j.db.ProductEventsOutboxRepo().GetPending(ctx, batchSize)
 	if err != nil {
 		slog.ErrorContext(ctx, "ProductEventsOutboxJob: GetPending failed", "err", err)
 		return 0
@@ -119,7 +124,7 @@ func (j *ProductEventsOutboxJob) tick(ctx context.Context) int {
 	for failedRecordId, failedRecordReason := range processBatchResult.FailedRecordReasons {
 		outboxRecord := outboxRecordsMap[failedRecordId]
 
-		if outboxRecord.RetryCount+1 >= j.maxRetryCount {
+		if outboxRecord.RetryCount+1 >= maxRetryCount {
 			err = j.db.ProductEventsOutboxRepo().MarkDeadLetter(
 				ctx,
 				failedRecordId,

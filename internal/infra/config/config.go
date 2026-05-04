@@ -57,6 +57,8 @@ type Config struct {
 		ProductEventsOutbox        ProductEventsOutboxConfig        `yaml:"product-events-outbox"`
 		ProductEventsOutboxMonitor ProductEventsOutboxMonitorConfig `yaml:"product-events-outbox-monitor"`
 	} `yaml:"jobs"`
+
+	Etcd *EtcdConfig `yaml:"etcd"`
 }
 
 func LoadConfig(filename string) (*Config, error) {
@@ -92,4 +94,10 @@ type ProductEventsOutboxConfig struct {
 type ProductEventsOutboxMonitorConfig struct {
 	Enabled     bool   `yaml:"enabled"`
 	JobInterval string `yaml:"job-interval"`
+}
+
+type EtcdConfig struct {
+	Endpoints   []string `yaml:"endpoints"`
+	DialTimeout string   `yaml:"dial-timeout"`
+	ConfigKey   string   `yaml:"config-key"`
 }

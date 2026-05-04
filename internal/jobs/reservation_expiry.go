@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/jva44ka/marketplace-simulator-product/internal/infra/config"
 	"github.com/jva44ka/marketplace-simulator-product/internal/models"
 )
 
@@ -20,50 +21,56 @@ type ReservationService interface {
 type ReservationExpiryJob struct {
 	reservationRepo    ReservationRepository
 	reservationService ReservationService
-	reservationTTL     time.Duration
-	interval           time.Duration
-	enabled            bool
+	cfgStore           *config.ConfigStore
 }
 
 func NewReservationExpiryJob(
 	reservationRepo ReservationRepository,
 	reservationSvc ReservationService,
-	reservationTTL time.Duration,
-	interval time.Duration,
-	enabled bool,
+	cfgStore *config.ConfigStore,
 ) *ReservationExpiryJob {
 	return &ReservationExpiryJob{
 		reservationRepo:    reservationRepo,
 		reservationService: reservationSvc,
-		reservationTTL:     reservationTTL,
-		interval:           interval,
-		enabled:            enabled,
+		cfgStore:           cfgStore,
 	}
 }
 
 func (j *ReservationExpiryJob) Run(ctx context.Context) {
-	if !j.enabled {
-		slog.InfoContext(ctx, "ReservationExpiryJob disabled, shutting down")
-		return
-	}
-
-	ticker := time.NewTicker(j.interval)
-	defer ticker.Stop()
-
 	for {
+		cfg := j.cfgStore.Load().Jobs.ReservationExpiry
+
+		//todo рефакторинг, чтобы не парсить на каждую итерацию
+		interval, err := time.ParseDuration(cfg.JobInterval)
+		if err != nil {
+			interval = time.Second
+			slog.Warn("ReservationExpiryJob: invalid job-interval, using 1s", "err", err)
+		}
+
 		select {
 		case <-ctx.Done():
 			return
-		case <-ticker.C:
-			if err := j.tick(ctx); err != nil {
-				slog.ErrorContext(ctx, "reservation expiry job failed", "err", err)
-			}
+		case <-time.After(interval):
+		}
+
+		if !cfg.Enabled {
+			continue
+		}
+
+		ttl, err := time.ParseDuration(cfg.TTL)
+		if err != nil {
+			slog.Warn("ReservationExpiryJob: invalid ttl, skipping tick", "err", err)
+			continue
+		}
+
+		if err := j.tick(ctx, ttl); err != nil {
+			slog.ErrorContext(ctx, "reservation expiry job failed", "err", err)
 		}
 	}
 }
 
-func (j *ReservationExpiryJob) tick(ctx context.Context) error {
-	cutoff := time.Now().Add(-j.reservationTTL)
+func (j *ReservationExpiryJob) tick(ctx context.Context, ttl time.Duration) error {
+	cutoff := time.Now().Add(-ttl)
 
 	//TODO: сделать все через сервис
 	expiredReservations, err := j.reservationRepo.GetExpired(ctx, cutoff)

@@ -15,6 +15,7 @@ import (
 	"github.com/jva44ka/marketplace-simulator-product/internal/app/middleware"
 	"github.com/jva44ka/marketplace-simulator-product/internal/infra/config"
 	"github.com/jva44ka/marketplace-simulator-product/internal/infra/database"
+	etcdPkg "github.com/jva44ka/marketplace-simulator-product/internal/infra/etcd"
 	"github.com/jva44ka/marketplace-simulator-product/internal/infra/kafka"
 	"github.com/jva44ka/marketplace-simulator-product/internal/infra/metrics"
 	"github.com/jva44ka/marketplace-simulator-product/internal/infra/tracing"
@@ -22,6 +23,7 @@ import (
 	"github.com/jva44ka/marketplace-simulator-product/internal/services/product"
 	"github.com/jva44ka/marketplace-simulator-product/internal/services/reservation"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/time/rate"
@@ -35,22 +37,57 @@ import (
 type App struct {
 	grpcServer             *grpc.Server
 	httpServer             *http.Server
-	cfg                    *config.Config
+	cfg                    *config.Config // начальный yaml-конфиг (для boot-параметров)
+	cfgStore               *config.ConfigStore
 	reservationExpiryJob   *jobs.ReservationExpiryJob
 	productEventsOutboxJob *jobs.ProductEventsOutboxJob
 	metricCollectorJob     *jobs.MetricCollectorJob
 	producer               *kafka.ProductEventsProducer
 	tracingCloser          func(context.Context) error
+	etcdClient             *clientv3.Client // nil если etcd не настроен
+	etcdConfigKey          string
+	applyDynamicConfig     func(*config.Config)
 }
 
 func NewApp(ctx context.Context, cfg *config.Config) (*App, error) {
+	cfgStore := config.NewConfigStore(cfg)
+
+	var etcdClient *clientv3.Client
+	if cfg.Etcd != nil {
+		var err error
+		etcdClient, err = etcdPkg.NewClient(cfg.Etcd)
+		if err != nil {
+			slog.Warn("etcd: failed to connect, using yaml defaults", "err", err)
+			etcdClient = nil
+		} else {
+			initCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+			defer cancel()
+
+			if etcdCfg, found, err := etcdPkg.ReadFromEtcd(initCtx, etcdClient, cfg.Etcd.ConfigKey); err != nil {
+				slog.Warn("etcd: failed to read config, using yaml defaults", "err", err)
+			} else if found {
+				cfgStore.Store(etcdCfg)
+				slog.Info("etcd: loaded config from etcd")
+			} else {
+				// Первый старт: seeding
+				if err := etcdPkg.SeedIfAbsent(initCtx, etcdClient, cfg.Etcd.ConfigKey, cfg); err != nil {
+					slog.Warn("etcd: failed to seed config", "err", err)
+				}
+			}
+		}
+	}
+
+	// Используем актуальный конфиг (из etcd или yaml)
+	currentCfg := cfgStore.Load()
+
+	// --- Инфраструктура (restart-required поля) ---
 	connString := fmt.Sprintf(
 		"postgres://%s:%s@%s:%s/%s",
-		cfg.Database.User,
-		cfg.Database.Password,
-		cfg.Database.Host,
-		cfg.Database.Port,
-		cfg.Database.Name,
+		currentCfg.Database.User,
+		currentCfg.Database.Password,
+		currentCfg.Database.Host,
+		currentCfg.Database.Port,
+		currentCfg.Database.Name,
 	)
 	poolConfig, err := pgxpool.ParseConfig(connString)
 	if err != nil {
@@ -63,92 +100,81 @@ func NewApp(ctx context.Context, cfg *config.Config) (*App, error) {
 	}
 
 	var tracingCloser func(context.Context) error
-	if cfg.Tracing.Enabled {
-		tracingCloser, err = tracing.InitTracer(ctx, "products", cfg.Tracing.OtlpEndpoint)
+	if currentCfg.Tracing.Enabled {
+		tracingCloser, err = tracing.InitTracer(ctx, "products", currentCfg.Tracing.OtlpEndpoint)
 		if err != nil {
 			return nil, fmt.Errorf("tracing.InitTracer: %w", err)
 		}
 	} else {
-		tracingCloser = func(context.Context) error {
-			return nil
-		}
+		tracingCloser = func(context.Context) error { return nil }
 	}
 
-	//TODO: вынести парсинг опций в конкретные фабричные методы соответствующих сущностей
-	reservationTTL, err := time.ParseDuration(cfg.Jobs.ReservationExpiry.TTL)
-	if err != nil {
-		return nil, fmt.Errorf("parse reservation.ttl: %w", err)
-	}
-
-	reservationJobInterval, err := time.ParseDuration(cfg.Jobs.ReservationExpiry.JobInterval)
-	if err != nil {
-		return nil, fmt.Errorf("parse reservation.job-interval: %w", err)
-	}
-
-	outboxIdleInterval, err := time.ParseDuration(cfg.Jobs.ProductEventsOutbox.IdleInterval)
-	if err != nil {
-		return nil, fmt.Errorf("parse product-events-outbox.idle-interval: %w", err)
-	}
-
-	outboxActiveInterval, err := time.ParseDuration(cfg.Jobs.ProductEventsOutbox.ActiveInterval)
-	if err != nil {
-		return nil, fmt.Errorf("parse product-events-outbox.active-interval: %w", err)
-	}
-
-	outboxMonitorInterval, err := time.ParseDuration(cfg.Jobs.ProductEventsOutboxMonitor.JobInterval)
-	if err != nil {
-		return nil, fmt.Errorf("parse outbox-monitor.job-interval: %w", err)
-	}
-
-	kafkaWriteTimeout, err := time.ParseDuration(cfg.Kafka.WriteTimeout)
+	kafkaWriteTimeout, err := time.ParseDuration(currentCfg.Kafka.WriteTimeout)
 	if err != nil {
 		return nil, fmt.Errorf("parse kafka.write-timeout: %w", err)
 	}
 
 	dbMetrics := metrics.NewDbMetrics()
 	db := database.NewDBManager(pool, dbMetrics, dbMetrics)
-	producer := kafka.NewProductEventsProducer(cfg.Kafka.Brokers, cfg.Kafka.ProductEventsTopic, kafkaWriteTimeout)
+	producer := kafka.NewProductEventsProducer(currentCfg.Kafka.Brokers, currentCfg.Kafka.ProductEventsTopic, kafkaWriteTimeout)
 
 	productService := product.NewService(db)
 	reservationService := reservation.NewService(db)
 
+	// --- Jobs (читают из cfgStore на каждом тике) ---
 	reservationExpiryJob := jobs.NewReservationExpiryJob(
 		db.ReservationPgxRepo(),
 		reservationService,
-		reservationTTL,
-		reservationJobInterval,
-		cfg.Jobs.ReservationExpiry.Enabled)
+		cfgStore,
+	)
 
 	outboxMetrics := metrics.NewOutboxMetrics()
 	outboxJob := jobs.NewProductEventsOutboxJob(
 		db,
 		producer,
 		outboxMetrics,
-		cfg.Jobs.ProductEventsOutbox.Enabled,
-		outboxIdleInterval,
-		outboxActiveInterval,
-		cfg.Jobs.ProductEventsOutbox.BatchSize,
-		int32(cfg.Jobs.ProductEventsOutbox.MaxRetries))
+		cfgStore,
+	)
 
 	metricCollectorMetrics := metrics.NewMetricCollectorMetrics()
 	metricCollectorJob := jobs.NewMetricCollectorJob(
 		db.ProductEventsOutboxRepo(),
 		pool,
 		metricCollectorMetrics,
-		cfg.Jobs.ProductEventsOutboxMonitor.Enabled,
-		outboxMonitorInterval)
+		cfgStore,
+	)
 
+	// --- Rate limiter (всегда создаём, middleware читает текущее состояние) ---
+	var limiter *rate.Limiter
+	if currentCfg.RateLimiter.Enabled {
+		limiter = rate.NewLimiter(rate.Limit(currentCfg.RateLimiter.RPS), currentCfg.RateLimiter.Burst)
+	} else {
+		limiter = rate.NewLimiter(rate.Inf, 0)
+	}
+
+	// --- applyDynamicConfig: вызывается при каждом изменении в etcd ---
+	applyDynamicConfig := func(newCfg *config.Config) {
+		if newCfg.RateLimiter.Enabled {
+			limiter.SetLimit(rate.Limit(newCfg.RateLimiter.RPS))
+			limiter.SetBurst(newCfg.RateLimiter.Burst)
+		} else {
+			limiter.SetLimit(rate.Inf)
+		}
+		slog.Info("dynamic config applied",
+			"rate-limiter.enabled", newCfg.RateLimiter.Enabled,
+			"rate-limiter.rps", newCfg.RateLimiter.RPS,
+		)
+	}
+
+	// --- gRPC interceptors ---
 	interceptors := []grpc.UnaryServerInterceptor{
+		middleware.RateLimit(limiter),
 		middleware.Panic,
 		middleware.ResponseTime(metrics.NewRequestMetrics()),
-		middleware.Logger(cfg),
+		middleware.Logger(cfgStore),
 		middleware.StatusCode,
-		middleware.Auth(cfg),
+		middleware.Auth(cfgStore),
 		middleware.Validate,
-	}
-	if cfg.RateLimiter.Enabled {
-		limiter := rate.NewLimiter(rate.Limit(cfg.RateLimiter.RPS), cfg.RateLimiter.Burst)
-		interceptors = append([]grpc.UnaryServerInterceptor{middleware.RateLimit(limiter)}, interceptors...)
 	}
 
 	grpcServer := grpc.NewServer(
@@ -202,15 +228,24 @@ func NewApp(ctx context.Context, cfg *config.Config) (*App, error) {
 		Handler: httpMux,
 	}
 
+	etcdConfigKey := ""
+	if cfg.Etcd != nil {
+		etcdConfigKey = cfg.Etcd.ConfigKey
+	}
+
 	return &App{
 		grpcServer:             grpcServer,
 		httpServer:             httpServer,
 		cfg:                    cfg,
+		cfgStore:               cfgStore,
 		reservationExpiryJob:   reservationExpiryJob,
 		productEventsOutboxJob: outboxJob,
 		metricCollectorJob:     metricCollectorJob,
 		producer:               producer,
 		tracingCloser:          tracingCloser,
+		etcdClient:             etcdClient,
+		etcdConfigKey:          etcdConfigKey,
+		applyDynamicConfig:     applyDynamicConfig,
 	}, nil
 }
 
@@ -222,24 +257,29 @@ func (a *App) Run(ctx context.Context) error {
 
 	errGroup, ctx := errgroup.WithContext(ctx)
 
+	// etcd watcher
+	if a.etcdClient != nil {
+		errGroup.Go(func() error {
+			etcdPkg.Watch(ctx, a.etcdClient, a.etcdConfigKey, a.cfgStore, a.applyDynamicConfig)
+			return nil
+		})
+	}
+
 	errGroup.Go(func() error {
 		slog.Info("starting reservation expiry job")
 		a.reservationExpiryJob.Run(ctx)
-
 		return nil
 	})
 
 	errGroup.Go(func() error {
 		slog.Info("starting product events outbox job")
 		a.productEventsOutboxJob.Run(ctx)
-
 		return nil
 	})
 
 	errGroup.Go(func() error {
 		slog.Info("starting metric collector job")
 		a.metricCollectorJob.Run(ctx)
-
 		return nil
 	})
 
@@ -261,7 +301,12 @@ func (a *App) Run(ctx context.Context) error {
 		httpShutdownErr := a.httpServer.Shutdown(shutdownCtx)
 		tracingCloseErr := a.tracingCloser(shutdownCtx)
 
-		return errors.Join(httpShutdownErr, tracingCloseErr)
+		var etcdCloseErr error
+		if a.etcdClient != nil {
+			etcdCloseErr = a.etcdClient.Close()
+		}
+
+		return errors.Join(httpShutdownErr, tracingCloseErr, etcdCloseErr)
 	})
 
 	return errGroup.Wait()

@@ -10,13 +10,14 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-func Auth(cfg *config.Config) grpc.UnaryServerInterceptor {
+func Auth(store *config.ConfigStore) grpc.UnaryServerInterceptor {
 	return func(
 		ctx context.Context,
 		req any,
 		info *grpc.UnaryServerInfo,
 		handler grpc.UnaryHandler,
 	) (any, error) {
+		cfg := store.Load()
 		if !cfg.Authorization.Enabled {
 			return handler(ctx, req)
 		}

@@ -12,8 +12,9 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func Logger(cfg *config.Config) grpc.UnaryServerInterceptor {
+func Logger(store *config.ConfigStore) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp any, err error) {
+		cfg := store.Load()
 		if cfg.Logging.LogRequestBody {
 			body, _ := protojson.Marshal((req).(proto.Message))
 			slog.InfoContext(ctx, "request", "method", info.FullMethod, "body", string(body))

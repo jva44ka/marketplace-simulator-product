@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jva44ka/marketplace-simulator-product/internal/infra/config"
 )
 
 type MetricCollectorRepository interface {
@@ -26,8 +27,7 @@ type MetricCollectorJob struct {
 	repo                MetricCollectorRepository
 	pool                *pgxpool.Pool
 	metrics             MetricCollectorMetrics
-	enabled             bool
-	interval            time.Duration
+	cfgStore            *config.ConfigStore
 	prevAcquireCount    int64
 	prevAcquireDuration time.Duration
 }
@@ -36,34 +36,38 @@ func NewMetricCollectorJob(
 	repo MetricCollectorRepository,
 	pool *pgxpool.Pool,
 	metrics MetricCollectorMetrics,
-	enabled bool,
-	interval time.Duration,
+	cfgStore *config.ConfigStore,
 ) *MetricCollectorJob {
 	return &MetricCollectorJob{
 		repo:     repo,
 		pool:     pool,
 		metrics:  metrics,
-		enabled:  enabled,
-		interval: interval,
+		cfgStore: cfgStore,
 	}
 }
 
 func (j *MetricCollectorJob) Run(ctx context.Context) {
-	if !j.enabled {
-		slog.InfoContext(ctx, "MetricCollectorJob disabled, shutting down")
-		return
-	}
-
-	ticker := time.NewTicker(j.interval)
-	defer ticker.Stop()
-
 	for {
+		cfg := j.cfgStore.Load().Jobs.ProductEventsOutboxMonitor
+
+		//todo рефакторинг, чтобы не парсить на каждую итерацию
+		interval, err := time.ParseDuration(cfg.JobInterval)
+		if err != nil {
+			interval = 10 * time.Second
+			slog.Warn("MetricCollectorJob: invalid job-interval, using 10s", "err", err)
+		}
+
 		select {
 		case <-ctx.Done():
 			return
-		case <-ticker.C:
-			j.tick(ctx)
+		case <-time.After(interval):
 		}
+
+		if !cfg.Enabled {
+			continue
+		}
+
+		j.tick(ctx)
 	}
 }
 
