@@ -8,6 +8,7 @@
 - **gRPC** + **grpc-gateway** — транспортный слой (gRPC + REST HTTP-обёртка)
 - **PostgreSQL** — хранилище товаров и резервирований (pgx/v5, pgxpool)
 - **Kafka** — публикация событий об изменении товаров (segmentio/kafka-go)
+- **etcd** — хранилище динамической конфигурации (hot-reload без рестарта)
 - **goose** — миграции БД
 - **Prometheus** — метрики
 - **OpenTelemetry** — распределённые трейсы (OTLP → Tempo)
@@ -27,7 +28,8 @@ internal/
     reservation_expiry     — снятие просроченных резервирований
     outbox_monitor         — сбор метрик outbox и пула соединений
   infra/
-    config/          — загрузка конфигурации из YAML
+    config/          — загрузка конфигурации из YAML + ConfigStore (atomic hot-reload)
+    etcd/            — etcd-клиент, чтение/seed конфига, watcher
     database/        — пул соединений, репозитории
     kafka/           — Kafka-продюсер событий товаров
     metrics/         — Prometheus-метрики
@@ -46,8 +48,10 @@ swagger/             — сгенерированный OpenAPI-файл
 | `GetProduct`           | Получить информацию о товаре по SKU                                               |
 | `IncreaseProductCount` | Увеличить количество товаров на складе                                            |
 | `ReserveProduct`       | Зарезервировать товары (создаёт запись резервирования, остатки не изменяются)     |
-| `ReleaseReservation`   | Снять резервирование (удаляет запись, остатки не изменяются)                      |
-| `ConfirmReservation`   | Подтвердить покупку (списывает товар со склада, удаляет запись резервирования)    |
+| `ReleaseReservation`   | Снять резервирование (удаляет запись, остатки не изменяются) — **идемпотентен**   |
+| `ConfirmReservation`   | Подтвердить покупку (списывает товар со склада, удаляет резервирование) — **идемпотентен** |
+
+> **Идемпотентность `ReleaseReservation` и `ConfirmReservation`**: если резервирования по переданным ID уже не существуют (удалены в предыдущем вызове), методы возвращают успех без повторного изменения остатков. Это гарантирует корректность при at-least-once доставке из outbox.
 
 ### HTTP REST (порт 5001, grpc-gateway)
 
@@ -120,6 +124,12 @@ tracing:
   enabled: true
   otlp-endpoint: tempo:4317
 
+etcd:
+  endpoints:
+    - etcd:2379
+  dial-timeout: 5s
+  config-key: /config/product   # ключ в etcd где хранится конфиг
+
 jobs:
   reservation-expiry:
     enabled: true
@@ -135,6 +145,42 @@ jobs:
     enabled: true
     job-interval: 10s
 ```
+
+## Динамическая конфигурация (etcd)
+
+При старте сервис читает конфиг из YAML, затем подключается к etcd:
+- если ключ существует — загружает конфиг из etcd поверх YAML-дефолтов;
+- если ключа нет — записывает YAML-конфиг в etcd (первый старт).
+
+Затем запускает `Watch` на ключ — любое изменение в etcd применяется в реальном времени.
+
+Если etcd недоступен при старте — сервис продолжает работу с YAML-конфигом (graceful degradation).
+
+| Параметр | Обновляется без рестарта | Механизм |
+|---|---|---|
+| `rate-limiter.rps` / `burst` / `enabled` | ✅ | `limiter.SetLimit/SetBurst` в callback |
+| `authorization.enabled` / `admin-user` | ✅ | middleware читает `cfgStore.Load()` на каждом запросе |
+| `logging.log-request-body` / `log-response-body` | ✅ | middleware читает `cfgStore.Load()` на каждом запросе |
+| `jobs.*.enabled` / `job-interval` / `batch-size` / `max-retries` / `ttl` | ✅ | джобы читают `cfgStore.Load()` на каждом тике |
+| `database.*` | ⚠️ требует рестарта | лог warning при изменении |
+| `http-server.*` / `grpc-server.*` | ⚠️ требует рестарта | лог warning при изменении |
+| `kafka.brokers` / `topic` | ⚠️ требует рестарта | лог warning при изменении |
+| `tracing.*` | ⚠️ требует рестарта | лог warning при изменении |
+
+### Изменить конфиг через etcdctl
+
+```bash
+# Посмотреть текущий конфиг
+docker exec etcd etcdctl get /config/product
+
+# Изменить rate limiter
+docker exec etcd etcdctl put /config/product "$(
+  docker exec etcd etcdctl get /config/product --print-value-only \
+  | sed 's/rps: 500/rps: 100/'
+)"
+```
+
+Или через **etcd UI** → [http://localhost:8091](http://localhost:8091).
 
 ## Метрики Prometheus
 
@@ -158,7 +204,7 @@ jobs:
 
 ### Зависимости
 
-- Go 1.24+
+- Go 1.25+
 - PostgreSQL
 - Kafka
 - [goose](https://github.com/pressly/goose)
