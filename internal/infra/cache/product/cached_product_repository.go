@@ -10,12 +10,17 @@ import (
 )
 
 type CachedProductRepository struct {
-	db    services.ProductRepository
-	cache *ProductCache // nil when cache is disabled
+	db      services.ProductRepository
+	cache   *ProductCache        // nil when cache is disabled
+	metrics CacheMetricsReporter // nil when metrics are disabled
 }
 
-func NewCachedProductRepository(db services.ProductRepository, productCache *ProductCache) *CachedProductRepository {
-	return &CachedProductRepository{db: db, cache: productCache}
+func NewCachedProductRepository(
+	db services.ProductRepository,
+	productCache *ProductCache,
+	metrics CacheMetricsReporter,
+) *CachedProductRepository {
+	return &CachedProductRepository{db: db, cache: productCache, metrics: metrics}
 }
 
 func (r *CachedProductRepository) GetBySku(ctx context.Context, sku uint64, txId *uint32) (*models.Product, error) {
@@ -27,6 +32,10 @@ func (r *CachedProductRepository) GetBySku(ctx context.Context, sku uint64, txId
 		} else if productFromCache != nil {
 			if txId == nil || productFromCache.TransactionId >= *txId {
 				return productFromCache, nil
+			}
+			// Cache hit, but the cached xmin is older than required — treat as stale.
+			if r.metrics != nil {
+				r.metrics.ReportOperation("get", "stale", 0)
 			}
 			slog.DebugContext(ctx, "CachedProductRepository.GetBySku: stale xmin, fetching from DB",
 				"sku", sku,

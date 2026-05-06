@@ -130,6 +130,8 @@ func NewApp(ctx context.Context, cfg *config.Config) (*App, error) {
 	reservationService := reservation.NewService(db)
 
 	// --- Redis cache (optional; graceful degradation if nil or unavailable) ---
+	cacheMetrics := metrics.NewCacheMetrics()
+
 	var productCache *cacheProduct.ProductCache
 	if currentCfg.Redis.Enabled {
 		cacheTTL, err := time.ParseDuration(currentCfg.Redis.TTL)
@@ -138,14 +140,14 @@ func NewApp(ctx context.Context, cfg *config.Config) (*App, error) {
 			cacheTTL = 5 * time.Minute
 		}
 		redisClient := redis.NewClient(&redis.Options{Addr: currentCfg.Redis.RedisAddr})
-		productCache = cacheProduct.NewProductCache(redisClient, cacheTTL)
+		productCache = cacheProduct.NewProductCache(redisClient, cacheTTL, cacheMetrics)
 		slog.Info("cache: Redis connected", "addr", currentCfg.Redis.RedisAddr)
 	}
 
 	// Wrap the plain product repository with the cache decorator so that all
 	// read paths (GetBySku) benefit from Redis without any cache logic leaking
 	// into the service or transport layers.
-	db.SetProductsRepo(cacheProduct.NewCachedProductRepository(rawProductRepo, productCache))
+	db.SetProductsRepo(cacheProduct.NewCachedProductRepository(rawProductRepo, productCache, cacheMetrics))
 
 	reservationExpiryJob := jobs.NewReservationExpiryJob(
 		db.ReservationPgxRepo(),

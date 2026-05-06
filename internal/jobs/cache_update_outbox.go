@@ -92,7 +92,7 @@ func (j *CacheUpdateOutboxJob) Run(ctx context.Context) {
 }
 
 func (j *CacheUpdateOutboxJob) tick(ctx context.Context, batchSize int, maxRetries int32) int {
-	if j.cache != nil {
+	if j.cache == nil {
 		slog.ErrorContext(ctx, "CacheUpdateOutboxJob: cache is null. Redis is required for CacheUpdateOutboxJob")
 		return 0
 	}
