@@ -87,6 +87,13 @@ func (s *Service) Reserve(ctx context.Context, reserveItems []ReserveItem) (map[
 			}
 		}
 
+		cacheOutbox := s.db.CacheUpdateOutboxRepo().WithTx(tx)
+		for _, item := range reserveItems {
+			if err = cacheOutbox.Create(ctx, item.Sku); err != nil {
+				return fmt.Errorf("Reserve: save cache_update_outbox: %w", err)
+			}
+		}
+
 		return nil
 	})
 	if err != nil {

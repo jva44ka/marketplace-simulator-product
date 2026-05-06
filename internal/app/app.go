@@ -13,6 +13,7 @@ import (
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jva44ka/marketplace-simulator-product/internal/app/middleware"
+	"github.com/jva44ka/marketplace-simulator-product/internal/infra/cache"
 	"github.com/jva44ka/marketplace-simulator-product/internal/infra/config"
 	"github.com/jva44ka/marketplace-simulator-product/internal/infra/database"
 	etcdPkg "github.com/jva44ka/marketplace-simulator-product/internal/infra/etcd"
@@ -23,6 +24,7 @@ import (
 	"github.com/jva44ka/marketplace-simulator-product/internal/services/product"
 	"github.com/jva44ka/marketplace-simulator-product/internal/services/reservation"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/redis/go-redis/v9"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"golang.org/x/sync/errgroup"
@@ -41,6 +43,7 @@ type App struct {
 	cfgStore               *config.ConfigStore
 	reservationExpiryJob   *jobs.ReservationExpiryJob
 	productEventsOutboxJob *jobs.ProductEventsOutboxJob
+	cacheUpdateOutboxJob   *jobs.CacheUpdateOutboxJob
 	metricCollectorJob     *jobs.MetricCollectorJob
 	producer               *kafka.ProductEventsProducer
 	tracingCloser          func(context.Context) error
@@ -118,8 +121,31 @@ func NewApp(ctx context.Context, cfg *config.Config) (*App, error) {
 	db := database.NewDBManager(pool, dbMetrics, dbMetrics)
 	producer := kafka.NewProductEventsProducer(currentCfg.Kafka.Brokers, currentCfg.Kafka.ProductEventsTopic, kafkaWriteTimeout)
 
+	// Keep a reference to the raw (non-cached) product repo for the cache-update
+	// outbox job: that job must always read from Postgres to get the authoritative
+	// state before writing it into Redis.
+	rawProductRepo := db.ProductsRepo()
+
 	productService := product.NewService(db)
 	reservationService := reservation.NewService(db)
+
+	// --- Redis cache (optional; graceful degradation if nil or unavailable) ---
+	var productCache *cache.ProductCache
+	if currentCfg.Cache != nil {
+		cacheTTL, err := time.ParseDuration(currentCfg.Cache.TTL)
+		if err != nil {
+			slog.Warn("cache: invalid ttl, using 5m", "err", err)
+			cacheTTL = 5 * time.Minute
+		}
+		redisClient := redis.NewClient(&redis.Options{Addr: currentCfg.Cache.RedisAddr})
+		productCache = cache.NewProductCache(redisClient, cacheTTL)
+		slog.Info("cache: Redis connected", "addr", currentCfg.Cache.RedisAddr)
+	}
+
+	// Wrap the plain product repository with the cache decorator so that all
+	// read paths (GetBySku) benefit from Redis without any cache logic leaking
+	// into the service or transport layers.
+	db.SetProductsRepo(database.NewCachedProductRepository(rawProductRepo, productCache))
 
 	// --- Jobs (читают из cfgStore на каждом тике) ---
 	reservationExpiryJob := jobs.NewReservationExpiryJob(
@@ -133,6 +159,13 @@ func NewApp(ctx context.Context, cfg *config.Config) (*App, error) {
 		db,
 		producer,
 		outboxMetrics,
+		cfgStore,
+	)
+
+	cacheUpdateOutboxJob := jobs.NewCacheUpdateOutboxJob(
+		db.CacheUpdateOutboxRepo(),
+		rawProductRepo, // must bypass cache: the job's job is to populate it
+		productCache,
 		cfgStore,
 	)
 
@@ -240,6 +273,7 @@ func NewApp(ctx context.Context, cfg *config.Config) (*App, error) {
 		cfgStore:               cfgStore,
 		reservationExpiryJob:   reservationExpiryJob,
 		productEventsOutboxJob: outboxJob,
+		cacheUpdateOutboxJob:   cacheUpdateOutboxJob,
 		metricCollectorJob:     metricCollectorJob,
 		producer:               producer,
 		tracingCloser:          tracingCloser,
@@ -274,6 +308,12 @@ func (a *App) Run(ctx context.Context) error {
 	errGroup.Go(func() error {
 		slog.Info("starting product events outbox job")
 		a.productEventsOutboxJob.Run(ctx)
+		return nil
+	})
+
+	errGroup.Go(func() error {
+		slog.Info("starting cache update outbox job")
+		a.cacheUpdateOutboxJob.Run(ctx)
 		return nil
 	})
 

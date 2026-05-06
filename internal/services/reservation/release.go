@@ -66,6 +66,13 @@ func (s *Service) Release(ctx context.Context, ids []int64) error {
 			}
 		}
 
+		cacheOutbox := s.db.CacheUpdateOutboxRepo().WithTx(tx)
+		for sku := range reservationSumsBySku {
+			if err = cacheOutbox.Create(ctx, sku); err != nil {
+				return fmt.Errorf("Release: save cache_update_outbox: %w", err)
+			}
+		}
+
 		return nil
 	})
 }

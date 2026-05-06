@@ -11,9 +11,10 @@ import (
 
 type DBManager struct {
 	pool         *pgxpool.Pool
-	products     *repositories.ProductPgxRepository
+	products     services.ProductRepository // may be wrapped by CachedProductRepository
 	reservations *repositories.ReservationPgxRepository
 	outbox       *repositories.ProductEventsOutboxPgxRepository
+	cacheOutbox  *repositories.CacheUpdateOutboxPgxRepository
 }
 
 func NewDBManager(
@@ -25,7 +26,14 @@ func NewDBManager(
 		products:     repositories.NewProductPgxRepository(pool, productMetrics),
 		reservations: repositories.NewReservationPgxRepository(pool, reservationMetrics),
 		outbox:       repositories.NewOutboxPgxRepository(pool),
+		cacheOutbox:  repositories.NewCacheUpdateOutboxRepository(pool),
 	}
+}
+
+// SetProductsRepo replaces the product repository used by this manager.
+// Call this after NewDBManager to install a decorator (e.g. CachedProductRepository).
+func (m *DBManager) SetProductsRepo(r services.ProductRepository) {
+	m.products = r
 }
 
 func (m *DBManager) ProductsRepo() services.ProductRepository {
@@ -42,6 +50,10 @@ func (m *DBManager) ReservationPgxRepo() *repositories.ReservationPgxRepository 
 
 func (m *DBManager) ProductEventsOutboxRepo() services.ProductEventsOutboxRepository {
 	return m.outbox
+}
+
+func (m *DBManager) CacheUpdateOutboxRepo() services.CacheUpdateOutboxRepository {
+	return m.cacheOutbox
 }
 
 func (m *DBManager) InTransaction(ctx context.Context, fn func(tx pgx.Tx) error) error {
