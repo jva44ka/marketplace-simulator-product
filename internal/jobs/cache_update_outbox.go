@@ -94,6 +94,11 @@ func (j *CacheUpdateOutboxJob) Run(ctx context.Context) {
 }
 
 func (j *CacheUpdateOutboxJob) tick(ctx context.Context, batchSize int, maxRetries int32) int {
+	if j.cache != nil {
+		slog.ErrorContext(ctx, "CacheUpdateOutboxJob: cache is null. Redis is required for CacheUpdateOutboxJob")
+		return 0
+	}
+
 	tickStart := time.Now()
 	defer func() {
 		j.metrics.ReportTickDuration(time.Since(tickStart))
@@ -177,9 +182,7 @@ func (j *CacheUpdateOutboxJob) processBatch(ctx context.Context, records []model
 			continue
 		}
 
-		if j.cache != nil {
-			j.cache.Set(ctx, product)
-		}
+		j.cache.Set(ctx, product)
 		successRecords = append(successRecords, rec.RecordId)
 	}
 
