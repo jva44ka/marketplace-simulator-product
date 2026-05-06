@@ -25,8 +25,6 @@ type CacheWriter interface {
 
 type CacheUpdateOutboxJobMetrics interface {
 	ReportProcessed(status string, count int)
-	SetPending(count int64)
-	SetDeadLetter(count int64)
 	ReportTickDuration(d time.Duration)
 	ReportRecordAge(age time.Duration)
 }
@@ -150,23 +148,7 @@ func (j *CacheUpdateOutboxJob) tick(ctx context.Context, batchSize int, maxRetri
 	j.metrics.ReportProcessed("failed", failedCount)
 	j.metrics.ReportProcessed("dead_letter", deadLetterCount)
 
-	j.collectGauges(ctx)
-
 	return len(records)
-}
-
-func (j *CacheUpdateOutboxJob) collectGauges(ctx context.Context) {
-	if pending, err := j.db.CacheUpdateOutboxRepo().CountPending(ctx); err != nil {
-		slog.ErrorContext(ctx, "CacheUpdateOutboxJob: CountPending failed", "err", err)
-	} else {
-		j.metrics.SetPending(pending)
-	}
-
-	if deadLetters, err := j.db.CacheUpdateOutboxRepo().CountDeadLetters(ctx); err != nil {
-		slog.ErrorContext(ctx, "CacheUpdateOutboxJob: CountDeadLetters failed", "err", err)
-	} else {
-		j.metrics.SetDeadLetter(deadLetters)
-	}
 }
 
 func (j *CacheUpdateOutboxJob) processBatch(ctx context.Context, records []models.CacheUpdateOutboxRecord) ProcessBatchResult {

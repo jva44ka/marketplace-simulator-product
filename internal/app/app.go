@@ -153,7 +153,7 @@ func NewApp(ctx context.Context, cfg *config.Config) (*App, error) {
 		cfgStore,
 	)
 
-	outboxMetrics := metrics.NewOutboxMetrics()
+	outboxMetrics := metrics.NewProductEventOutboxMetrics()
 	outboxJob := jobs.NewProductEventsOutboxJob(
 		db,
 		producer,
@@ -173,6 +173,7 @@ func NewApp(ctx context.Context, cfg *config.Config) (*App, error) {
 	metricCollectorMetrics := metrics.NewMetricCollectorMetrics()
 	metricCollectorJob := jobs.NewMetricCollectorJob(
 		db.ProductEventsOutboxRepo(),
+		db.CacheUpdateOutboxRepo(),
 		pool,
 		metricCollectorMetrics,
 		cfgStore,
