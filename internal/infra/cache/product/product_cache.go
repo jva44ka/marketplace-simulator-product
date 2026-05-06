@@ -1,64 +1,61 @@
-package cache
+package product
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
 	"fmt"
 	"log/slog"
 	"time"
 
 	redisContracts "github.com/jva44ka/marketplace-simulator-product/api_internal/redis"
+	"github.com/jva44ka/marketplace-simulator-product/internal/infra/cache"
 	"github.com/jva44ka/marketplace-simulator-product/internal/models"
 	"github.com/redis/go-redis/v9"
 )
 
 type ProductCache struct {
-	client *redis.Client
+	client *cache.CacheClient[redisContracts.Product]
 	ttl    time.Duration
 }
 
-func NewProductCache(client *redis.Client, ttl time.Duration) *ProductCache {
-	return &ProductCache{client: client, ttl: ttl}
+func NewProductCache(redisClient *redis.Client, ttl time.Duration) *ProductCache {
+	return &ProductCache{
+		client: cache.NewCacheClient[redisContracts.Product](redisClient, ttl),
+		ttl:    ttl,
+	}
 }
 
-// Get returns the cached product, or (nil, nil) on a cache miss.
-// Any Redis error is returned as-is; callers should treat errors as a miss
-// and fall back to the database.
 func (c *ProductCache) Get(ctx context.Context, sku uint64) (*models.Product, error) {
-	val, err := c.client.Get(ctx, cacheKey(sku)).Bytes()
-	if errors.Is(err, redis.Nil) {
-		return nil, nil // cache miss — not an error
-	}
+	product, err := c.client.Get(ctx, cacheKey(sku))
 	if err != nil {
 		return nil, fmt.Errorf("ProductCache.Get sku=%d: %w", sku, err)
 	}
 
-	var product models.Product
-	if err = json.Unmarshal(val, &product); err != nil {
-		return nil, fmt.Errorf("ProductCache.Get sku=%d: unmarshal: %w", sku, err)
+	if product == nil {
+		return nil, nil
 	}
-	return &product, nil
+
+	return &models.Product{
+		Sku:           product.Sku,
+		Price:         product.Price,
+		Name:          product.Name,
+		Count:         product.Count,
+		ReservedCount: product.ReservedCount,
+		TransactionId: product.TransactionId,
+	}, nil
 }
 
-// Set writes a product to Redis with the configured TTL.
-// Errors are logged but not propagated — cache writes are best-effort.
+// Не возвращает error т.к. запускается асинхронно в отдельной горутине без ожидания результата
+// Ошибку некому обрабатывать
 func (c *ProductCache) Set(ctx context.Context, product *models.Product) {
 	productRedis := redisContracts.FromModel(product)
 
-	data, err := json.Marshal(&productRedis)
-	if err != nil {
-		slog.ErrorContext(ctx, "ProductCache.Set: marshal failed", "sku", product.Sku, "err", err)
-		return
-	}
-	if err = c.client.Set(ctx, cacheKey(product.Sku), data, c.ttl).Err(); err != nil {
+	if err := c.client.Set(ctx, cacheKey(product.Sku), productRedis); err != nil {
 		slog.WarnContext(ctx, "ProductCache.Set: redis write failed", "sku", product.Sku, "err", err)
 	}
 }
 
-// Delete removes a product from Redis. Errors are logged but not propagated.
 func (c *ProductCache) Delete(ctx context.Context, sku uint64) {
-	if err := c.client.Del(ctx, cacheKey(sku)).Err(); err != nil {
+	if err := c.client.Delete(ctx, cacheKey(sku)); err != nil {
 		slog.WarnContext(ctx, "ProductCache.Delete: redis delete failed", "sku", sku, "err", err)
 	}
 }

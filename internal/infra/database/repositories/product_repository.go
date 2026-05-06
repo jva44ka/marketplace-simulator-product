@@ -44,7 +44,7 @@ type productRow struct {
 	xmin          uint32
 }
 
-func (r *ProductPgxRepository) GetBySku(ctx context.Context, sku uint64) (*models.Product, error) {
+func (r *ProductPgxRepository) GetBySku(ctx context.Context, sku uint64, _ *uint32) (*models.Product, error) {
 	products, err := r.GetBySkus(ctx, []uint64{sku})
 	if err != nil {
 		return nil, err

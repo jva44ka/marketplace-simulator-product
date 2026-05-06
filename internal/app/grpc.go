@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	pb "github.com/jva44ka/marketplace-simulator-product/internal/app/pb/marketplace-simulator-product/api/v1/proto"
-	"github.com/jva44ka/marketplace-simulator-product/internal/infra/cache"
 	"github.com/jva44ka/marketplace-simulator-product/internal/models"
 	"github.com/jva44ka/marketplace-simulator-product/internal/services/product"
 	"github.com/jva44ka/marketplace-simulator-product/internal/services/reservation"
@@ -31,24 +30,12 @@ func NewGrpcService(
 	}
 }
 
-// GetProduct serves a product by SKU.
-//
-// If the caller supplies an optional transaction_id (PostgreSQL xmin from a
-// previous mutation response), it is stored in the context so that the
-// CachedProductRepository decorator can decide whether the cached copy is
-// fresh enough or should be bypassed in favour of a DB read.
 func (s *GrpcService) GetProduct(ctx context.Context, request *pb.GetProductRequest) (*pb.GetProductResponse, error) {
 	if request.Sku < 1 {
 		return nil, status.Errorf(codes.InvalidArgument, "sku must be more than zero")
 	}
 
-	// Propagate the caller's known xmin so the repository layer can enforce
-	// read-your-own-writes without leaking cache concerns into this handler.
-	if request.TransactionId != nil {
-		ctx = cache.WithTransactionId(ctx, request.GetTransactionId())
-	}
-
-	p, err := s.productService.GetBySku(ctx, request.Sku)
+	p, err := s.productService.GetBySku(ctx, request.Sku, request.TransactionId)
 	if err != nil {
 		return nil, fmt.Errorf("GrpcService.GetProduct: %w", err)
 	}

@@ -6,37 +6,51 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jva44ka/marketplace-simulator-product/internal/infra/cache"
 	"github.com/jva44ka/marketplace-simulator-product/internal/infra/config"
 	"github.com/jva44ka/marketplace-simulator-product/internal/models"
 	"github.com/jva44ka/marketplace-simulator-product/internal/services"
 )
 
-// CacheProductRepository is the minimal read interface needed by the job.
-type CacheProductRepository interface {
-	GetBySku(ctx context.Context, sku uint64) (*models.Product, error)
+type CacheUpdateDBManager interface {
+	CacheUpdateOutboxRepo() services.CacheUpdateOutboxRepository
 }
 
-// CacheUpdateOutboxJob polls outbox.cache_updates and refreshes Redis
-// for each modified product. Uses the same idle/active interval pattern
-// as ProductEventsOutboxJob.
+type CacheUpdateProductRepo interface {
+	GetBySku(ctx context.Context, sku uint64, txId *uint32) (*models.Product, error)
+}
+
+type CacheWriter interface {
+	Set(ctx context.Context, product *models.Product)
+}
+
+type CacheUpdateOutboxJobMetrics interface {
+	ReportProcessed(status string, count int)
+	SetPending(count int64)
+	SetDeadLetter(count int64)
+	ReportTickDuration(d time.Duration)
+	ReportRecordAge(age time.Duration)
+}
+
 type CacheUpdateOutboxJob struct {
-	outboxRepo  services.CacheUpdateOutboxRepository
-	productRepo CacheProductRepository
-	cache       *cache.ProductCache
+	db          CacheUpdateDBManager
+	productRepo CacheUpdateProductRepo
+	cache       CacheWriter // nil when cache is disabled
+	metrics     CacheUpdateOutboxJobMetrics
 	cfgStore    *config.ConfigStore
 }
 
 func NewCacheUpdateOutboxJob(
-	outboxRepo services.CacheUpdateOutboxRepository,
-	productRepo CacheProductRepository,
-	cache *cache.ProductCache,
+	db CacheUpdateDBManager,
+	productRepo CacheUpdateProductRepo,
+	cache CacheWriter,
+	metrics CacheUpdateOutboxJobMetrics,
 	cfgStore *config.ConfigStore,
 ) *CacheUpdateOutboxJob {
 	return &CacheUpdateOutboxJob{
-		outboxRepo:  outboxRepo,
+		db:          db,
 		productRepo: productRepo,
 		cache:       cache,
+		metrics:     metrics,
 		cfgStore:    cfgStore,
 	}
 }
@@ -80,7 +94,12 @@ func (j *CacheUpdateOutboxJob) Run(ctx context.Context) {
 }
 
 func (j *CacheUpdateOutboxJob) tick(ctx context.Context, batchSize int, maxRetries int32) int {
-	records, err := j.outboxRepo.GetPending(ctx, batchSize)
+	tickStart := time.Now()
+	defer func() {
+		j.metrics.ReportTickDuration(time.Since(tickStart))
+	}()
+
+	records, err := j.db.CacheUpdateOutboxRepo().GetPending(ctx, batchSize)
 	if err != nil {
 		slog.ErrorContext(ctx, "CacheUpdateOutboxJob: GetPending failed", "err", err)
 		return 0
@@ -89,65 +108,83 @@ func (j *CacheUpdateOutboxJob) tick(ctx context.Context, batchSize int, maxRetri
 		return 0
 	}
 
-	successIDs := make([]uuid.UUID, 0, len(records))
+	for _, rec := range records {
+		j.metrics.ReportRecordAge(time.Since(rec.CreatedAt))
+	}
+
+	result := j.processBatch(ctx, records)
+
 	recordsByID := make(map[uuid.UUID]models.CacheUpdateOutboxRecord, len(records))
 	for _, r := range records {
 		recordsByID[r.RecordId] = r
 	}
 
-	failedReasons := make(map[uuid.UUID]string)
+	deadLetterCount := 0
+	failedCount := 0
+
+	for failedID, reason := range result.FailedRecordReasons {
+		rec := recordsByID[failedID]
+		if rec.RetryCount+1 >= maxRetries {
+			if err = j.db.CacheUpdateOutboxRepo().MarkDeadLetter(ctx, failedID, reason); err != nil {
+				slog.ErrorContext(ctx, "CacheUpdateOutboxJob: MarkDeadLetter failed", "err", err)
+			}
+			deadLetterCount++
+		} else {
+			if err = j.db.CacheUpdateOutboxRepo().IncrementRetry(ctx, failedID); err != nil {
+				slog.ErrorContext(ctx, "CacheUpdateOutboxJob: IncrementRetry failed", "err", err)
+			}
+			failedCount++
+		}
+	}
+
+	if err = j.db.CacheUpdateOutboxRepo().DeleteBatch(ctx, result.SuccessRecords); err != nil {
+		slog.ErrorContext(ctx, "CacheUpdateOutboxJob: DeleteBatch failed", "err", err)
+	}
+
+	j.metrics.ReportProcessed("success", len(result.SuccessRecords))
+	j.metrics.ReportProcessed("failed", failedCount)
+	j.metrics.ReportProcessed("dead_letter", deadLetterCount)
+
+	j.collectGauges(ctx)
+
+	return len(records)
+}
+
+func (j *CacheUpdateOutboxJob) collectGauges(ctx context.Context) {
+	if pending, err := j.db.CacheUpdateOutboxRepo().CountPending(ctx); err != nil {
+		slog.ErrorContext(ctx, "CacheUpdateOutboxJob: CountPending failed", "err", err)
+	} else {
+		j.metrics.SetPending(pending)
+	}
+
+	if deadLetters, err := j.db.CacheUpdateOutboxRepo().CountDeadLetters(ctx); err != nil {
+		slog.ErrorContext(ctx, "CacheUpdateOutboxJob: CountDeadLetters failed", "err", err)
+	} else {
+		j.metrics.SetDeadLetter(deadLetters)
+	}
+}
+
+func (j *CacheUpdateOutboxJob) processBatch(ctx context.Context, records []models.CacheUpdateOutboxRecord) ProcessBatchResult {
+	successRecords := make([]uuid.UUID, 0, len(records))
+	failedRecordReasons := make(map[uuid.UUID]string)
 
 	for _, rec := range records {
-		product, err := j.productRepo.GetBySku(ctx, rec.Sku)
+		product, err := j.productRepo.GetBySku(ctx, rec.Sku, nil)
 		if err != nil {
 			slog.ErrorContext(ctx, "CacheUpdateOutboxJob: GetBySku failed",
 				"sku", rec.Sku, "record_id", rec.RecordId, "err", err)
-			failedReasons[rec.RecordId] = err.Error()
+			failedRecordReasons[rec.RecordId] = err.Error()
 			continue
 		}
 
-		if j.cache == nil {
-			// Cache disabled — just delete the outbox record so it doesn't pile up.
-			successIDs = append(successIDs, rec.RecordId)
-			continue
+		if j.cache != nil {
+			j.cache.Set(ctx, product)
 		}
-
-		j.cache.Set(ctx, &cache.CachedProduct{
-			Sku:           product.Sku,
-			Name:          product.Name,
-			Price:         product.Price,
-			Count:         product.Count,
-			ReservedCount: product.ReservedCount,
-			TransactionId: product.TransactionId,
-		})
-
-		successIDs = append(successIDs, rec.RecordId)
+		successRecords = append(successRecords, rec.RecordId)
 	}
 
-	// Handle failures: increment retry or mark dead letter.
-	for id, reason := range failedReasons {
-		rec := recordsByID[id]
-		if rec.RetryCount+1 >= maxRetries {
-			if err = j.outboxRepo.MarkDeadLetter(ctx, id, reason); err != nil {
-				slog.ErrorContext(ctx, "CacheUpdateOutboxJob: MarkDeadLetter failed", "err", err)
-			}
-		} else {
-			if err = j.outboxRepo.IncrementRetry(ctx, id); err != nil {
-				slog.ErrorContext(ctx, "CacheUpdateOutboxJob: IncrementRetry failed", "err", err)
-			}
-		}
+	return ProcessBatchResult{
+		SuccessRecords:      successRecords,
+		FailedRecordReasons: failedRecordReasons,
 	}
-
-	if len(successIDs) > 0 {
-		if err = j.outboxRepo.DeleteBatch(ctx, successIDs); err != nil {
-			slog.ErrorContext(ctx, "CacheUpdateOutboxJob: DeleteBatch failed", "err", err)
-		}
-	}
-
-	slog.Info("CacheUpdateOutboxJob: tick done",
-		"processed", len(records),
-		"success", len(successIDs),
-		"failed", len(failedReasons))
-
-	return len(records)
 }

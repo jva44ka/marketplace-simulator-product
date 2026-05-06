@@ -30,8 +30,7 @@ func NewDBManager(
 	}
 }
 
-// SetProductsRepo replaces the product repository used by this manager.
-// Call this after NewDBManager to install a decorator (e.g. CachedProductRepository).
+// TODO: убрать после разбиение этого менеджера на transactor / repositories
 func (m *DBManager) SetProductsRepo(r services.ProductRepository) {
 	m.products = r
 }

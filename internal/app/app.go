@@ -13,7 +13,7 @@ import (
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jva44ka/marketplace-simulator-product/internal/app/middleware"
-	"github.com/jva44ka/marketplace-simulator-product/internal/infra/cache"
+	cacheProduct "github.com/jva44ka/marketplace-simulator-product/internal/infra/cache/product"
 	"github.com/jva44ka/marketplace-simulator-product/internal/infra/config"
 	"github.com/jva44ka/marketplace-simulator-product/internal/infra/database"
 	etcdPkg "github.com/jva44ka/marketplace-simulator-product/internal/infra/etcd"
@@ -130,7 +130,7 @@ func NewApp(ctx context.Context, cfg *config.Config) (*App, error) {
 	reservationService := reservation.NewService(db)
 
 	// --- Redis cache (optional; graceful degradation if nil or unavailable) ---
-	var productCache *cache.ProductCache
+	var productCache *cacheProduct.ProductCache
 	if currentCfg.Cache != nil {
 		cacheTTL, err := time.ParseDuration(currentCfg.Cache.TTL)
 		if err != nil {
@@ -138,16 +138,15 @@ func NewApp(ctx context.Context, cfg *config.Config) (*App, error) {
 			cacheTTL = 5 * time.Minute
 		}
 		redisClient := redis.NewClient(&redis.Options{Addr: currentCfg.Cache.RedisAddr})
-		productCache = cache.NewProductCache(redisClient, cacheTTL)
+		productCache = cacheProduct.NewProductCache(redisClient, cacheTTL)
 		slog.Info("cache: Redis connected", "addr", currentCfg.Cache.RedisAddr)
 	}
 
 	// Wrap the plain product repository with the cache decorator so that all
 	// read paths (GetBySku) benefit from Redis without any cache logic leaking
 	// into the service or transport layers.
-	db.SetProductsRepo(database.NewCachedProductRepository(rawProductRepo, productCache))
+	db.SetProductsRepo(cacheProduct.NewCachedProductRepository(rawProductRepo, productCache))
 
-	// --- Jobs (читают из cfgStore на каждом тике) ---
 	reservationExpiryJob := jobs.NewReservationExpiryJob(
 		db.ReservationPgxRepo(),
 		reservationService,
@@ -162,10 +161,12 @@ func NewApp(ctx context.Context, cfg *config.Config) (*App, error) {
 		cfgStore,
 	)
 
+	cacheUpdateOutboxMetrics := metrics.NewCacheUpdateOutboxMetrics()
 	cacheUpdateOutboxJob := jobs.NewCacheUpdateOutboxJob(
-		db.CacheUpdateOutboxRepo(),
+		db,             // satisfies CacheUpdateDBManager via CacheUpdateOutboxRepo()
 		rawProductRepo, // must bypass cache: the job's job is to populate it
 		productCache,
+		cacheUpdateOutboxMetrics,
 		cfgStore,
 	)
 

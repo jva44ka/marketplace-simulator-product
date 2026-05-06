@@ -87,6 +87,7 @@ func (s *Service) Reserve(ctx context.Context, reserveItems []ReserveItem) (map[
 			}
 		}
 
+		//TODO: сделать батчевую вставку
 		cacheOutbox := s.db.CacheUpdateOutboxRepo().WithTx(tx)
 		for _, item := range reserveItems {
 			if err = cacheOutbox.Create(ctx, item.Sku); err != nil {

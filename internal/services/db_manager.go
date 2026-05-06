@@ -9,7 +9,7 @@ import (
 )
 
 type ProductRepository interface {
-	GetBySku(ctx context.Context, sku uint64) (*models.Product, error)
+	GetBySku(ctx context.Context, sku uint64, txId *uint32) (*models.Product, error)
 	GetBySkus(ctx context.Context, skus []uint64) ([]*models.Product, error)
 	WithTx(tx pgx.Tx) ProductTxRepository
 }
