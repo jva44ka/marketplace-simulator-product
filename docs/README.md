@@ -7,11 +7,12 @@
 - **Go** — язык реализации
 - **gRPC** + **grpc-gateway** — транспортный слой (gRPC + REST HTTP-обёртка)
 - **PostgreSQL** — хранилище товаров и резервирований (pgx/v5, pgxpool)
+- **Redis** — кеш чтений товаров (go-redis/v9); Cache-Aside через декоратор репозитория; graceful degradation при недоступности
 - **Kafka** — публикация событий об изменении товаров (segmentio/kafka-go)
 - **etcd** — хранилище динамической конфигурации (hot-reload без рестарта)
 - **goose** — миграции БД
 - **Prometheus** — метрики
-- **OpenTelemetry** — распределённые трейсы (OTLP → Tempo)
+- **OpenTelemetry** — распределённые трейсы (OTLP → Tempo); инструментированы gRPC, PostgreSQL и Redis
 - **Swagger UI** — документация API
 
 ## Архитектура
@@ -25,12 +26,14 @@ internal/
   services/          — бизнес-логика (product, reservation)
   jobs/
     product_events_outbox  — публикация событий товаров в Kafka
+    cache_update_outbox    — инвалидация/обновление Redis после изменений товара
     reservation_expiry     — снятие просроченных резервирований
     outbox_monitor         — сбор метрик outbox и пула соединений
   infra/
     config/          — загрузка конфигурации из YAML + ConfigStore (atomic hot-reload)
     etcd/            — etcd-клиент, чтение/seed конфига, watcher
     database/        — пул соединений, репозитории
+    cache/           — Redis-клиент (CacheClient[T]), декоратор CachedProductRepository
     kafka/           — Kafka-продюсер событий товаров
     metrics/         — Prometheus-метрики
     tracing/         — инициализация OpenTelemetry
@@ -124,6 +127,11 @@ tracing:
   enabled: true
   otlp-endpoint: tempo:4317
 
+redis:
+  enabled: true        # false → graceful degradation, все чтения идут в БД
+  address: redis:6379
+  ttl: 5m              # TTL кеш-записи; рекомендуется не превышать время жизни резервирования
+
 etcd:
   endpoints:
     - etcd:2379
@@ -144,6 +152,12 @@ jobs:
   product-events-outbox-monitor:
     enabled: true
     job-interval: 10s
+  cache-update-outbox:
+    enabled: true
+    idle-interval: 100ms  # пауза когда нет записей
+    active-interval: 0s   # пауза когда в прошлом тике были записи
+    batch-size: 100
+    max-retries: 5
 ```
 
 ## Динамическая конфигурация (etcd)
@@ -163,6 +177,7 @@ jobs:
 | `logging.log-request-body` / `log-response-body` | ✅ | middleware читает `cfgStore.Load()` на каждом запросе |
 | `jobs.*.enabled` / `job-interval` / `batch-size` / `max-retries` / `ttl` | ✅ | джобы читают `cfgStore.Load()` на каждом тике |
 | `database.*` | ⚠️ требует рестарта | лог warning при изменении |
+| `redis.*` | ⚠️ требует рестарта | лог warning при изменении |
 | `http-server.*` / `grpc-server.*` | ⚠️ требует рестарта | лог warning при изменении |
 | `kafka.brokers` / `topic` | ⚠️ требует рестарта | лог warning при изменении |
 | `tracing.*` | ⚠️ требует рестарта | лог warning при изменении |
@@ -196,9 +211,11 @@ docker exec etcd etcdctl put /config/product "$(
 | `db_pool_max_conns{service}` | Gauge | Максимум соединений (MaxConns) |
 | `db_pool_avg_acquire_duration_seconds{service}` | Gauge | Среднее время ожидания соединения |
 | `db_optimistic_lock_failures_total{service}` | Counter | Сбои оптимистичной блокировки при обновлении остатков |
-| `outbox_records_pending{service}` | Gauge | Записи outbox в очереди |
-| `outbox_records_dead_letter{service}` | Gauge | Записи outbox в dead letter |
-| `outbox_records_processed_total{service,status}` | Counter | Обработанные outbox-записи |
+| `outbox_records_pending{service,outbox}` | Gauge | Записи outbox в очереди (по типу outbox) |
+| `outbox_records_dead_letter{service,outbox}` | Gauge | Записи outbox в dead letter (по типу outbox) |
+| `outbox_records_processed_total{service,job,status}` | Counter | Обработанные outbox-записи |
+| `products_cache_operations_total{service,operation,result}` | Counter | Операции с Redis: operation=get/set/delete, result=hit/miss/stale/error/success |
+| `products_cache_operation_duration_seconds{service,operation}` | Histogram | Время обращения к Redis по типу операции |
 
 ## Запуск локально
 
@@ -206,6 +223,7 @@ docker exec etcd etcdctl put /config/product "$(
 
 - Go 1.25+
 - PostgreSQL
+- Redis 7+
 - Kafka
 - [goose](https://github.com/pressly/goose)
 
