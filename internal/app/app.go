@@ -56,7 +56,7 @@ func NewApp(ctx context.Context, cfg *config.Config) (*App, error) {
 	cfgStore := config.NewConfigStore(cfg)
 
 	var etcdClient *clientv3.Client
-	if cfg.Etcd != nil {
+	if cfg.Etcd.Enabled {
 		var err error
 		etcdClient, err = etcdPkg.NewClient(cfg.Etcd)
 		if err != nil {
@@ -131,15 +131,15 @@ func NewApp(ctx context.Context, cfg *config.Config) (*App, error) {
 
 	// --- Redis cache (optional; graceful degradation if nil or unavailable) ---
 	var productCache *cacheProduct.ProductCache
-	if currentCfg.Cache != nil {
-		cacheTTL, err := time.ParseDuration(currentCfg.Cache.TTL)
+	if currentCfg.Redis.Enabled {
+		cacheTTL, err := time.ParseDuration(currentCfg.Redis.TTL)
 		if err != nil {
 			slog.Warn("cache: invalid ttl, using 5m", "err", err)
 			cacheTTL = 5 * time.Minute
 		}
-		redisClient := redis.NewClient(&redis.Options{Addr: currentCfg.Cache.RedisAddr})
+		redisClient := redis.NewClient(&redis.Options{Addr: currentCfg.Redis.RedisAddr})
 		productCache = cacheProduct.NewProductCache(redisClient, cacheTTL)
-		slog.Info("cache: Redis connected", "addr", currentCfg.Cache.RedisAddr)
+		slog.Info("cache: Redis connected", "addr", currentCfg.Redis.RedisAddr)
 	}
 
 	// Wrap the plain product repository with the cache decorator so that all
@@ -263,7 +263,7 @@ func NewApp(ctx context.Context, cfg *config.Config) (*App, error) {
 	}
 
 	etcdConfigKey := ""
-	if cfg.Etcd != nil {
+	if cfg.Etcd.Enabled {
 		etcdConfigKey = cfg.Etcd.ConfigKey
 	}
 

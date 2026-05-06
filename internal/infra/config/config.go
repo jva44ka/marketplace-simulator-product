@@ -59,7 +59,7 @@ type Config struct {
 		CacheUpdateOutbox          CacheUpdateOutboxConfig          `yaml:"cache-update-outbox"`
 	} `yaml:"jobs"`
 
-	Cache *CacheConfig `yaml:"cache"`
+	Redis *RedisConfig `yaml:"redis"`
 	Etcd  *EtcdConfig  `yaml:"etcd"`
 }
 
@@ -106,12 +106,14 @@ type CacheUpdateOutboxConfig struct {
 	MaxRetries     int    `yaml:"max-retries"`
 }
 
-type CacheConfig struct {
-	RedisAddr string `yaml:"redis-addr"`
+type RedisConfig struct {
+	Enabled   bool   `yaml:"enabled"`
+	RedisAddr string `yaml:"address"`
 	TTL       string `yaml:"ttl"`
 }
 
 type EtcdConfig struct {
+	Enabled     bool     `yaml:"enabled"`
 	Endpoints   []string `yaml:"endpoints"`
 	DialTimeout string   `yaml:"dial-timeout"`
 	ConfigKey   string   `yaml:"config-key"`

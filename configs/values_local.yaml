@@ -36,6 +36,18 @@ kafka:
   product-events-topic: product.events
   write-timeout: 5s
 
+redis:
+  enabled: false
+  address: redis:6379
+  ttl: 5m
+
+etcd:
+  enabled: false
+  endpoints:
+    - etcd:2379
+  dial-timeout: 5s
+  config-key: /config/product
+
 jobs:
   reservation-expiry:
     enabled: true
