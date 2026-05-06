@@ -43,6 +43,13 @@ func (s *Service) IncreaseCount(ctx context.Context, products []UpdateCount) err
 			}
 		}
 
+		cacheOutbox := s.db.CacheUpdateOutboxRepo().WithTx(tx)
+		for _, p := range products {
+			if err = cacheOutbox.Create(ctx, p.Sku); err != nil {
+				return fmt.Errorf("IncreaseCount: save cache_update_outbox: %w", err)
+			}
+		}
+
 		return nil
 	})
 }

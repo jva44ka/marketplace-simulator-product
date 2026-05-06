@@ -35,6 +35,8 @@ var (
 	_ = metadata.Join
 )
 
+var filter_Products_GetProduct_0 = &utilities.DoubleArray{Encoding: map[string]int{"sku": 0}, Base: []int{1, 1, 0}, Check: []int{0, 1, 2}}
+
 func request_Products_GetProduct_0(ctx context.Context, marshaler runtime.Marshaler, client ProductsClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
 		protoReq GetProductRequest
@@ -51,6 +53,12 @@ func request_Products_GetProduct_0(ctx context.Context, marshaler runtime.Marsha
 	protoReq.Sku, err = runtime.Uint64(val)
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "sku", err)
+	}
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_Products_GetProduct_0); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 	msg, err := client.GetProduct(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
 	return msg, metadata, err
@@ -69,6 +77,12 @@ func local_request_Products_GetProduct_0(ctx context.Context, marshaler runtime.
 	protoReq.Sku, err = runtime.Uint64(val)
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "sku", err)
+	}
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_Products_GetProduct_0); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 	msg, err := server.GetProduct(ctx, &protoReq)
 	return msg, metadata, err

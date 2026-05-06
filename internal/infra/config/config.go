@@ -56,9 +56,11 @@ type Config struct {
 		ReservationExpiry          ReservationExpiryConfig          `yaml:"reservation-expiry"`
 		ProductEventsOutbox        ProductEventsOutboxConfig        `yaml:"product-events-outbox"`
 		ProductEventsOutboxMonitor ProductEventsOutboxMonitorConfig `yaml:"product-events-outbox-monitor"`
+		CacheUpdateOutbox          CacheUpdateOutboxConfig          `yaml:"cache-update-outbox"`
 	} `yaml:"jobs"`
 
-	Etcd *EtcdConfig `yaml:"etcd"`
+	Redis *RedisConfig `yaml:"redis"`
+	Etcd  *EtcdConfig  `yaml:"etcd"`
 }
 
 func LoadConfig(filename string) (*Config, error) {
@@ -96,7 +98,22 @@ type ProductEventsOutboxMonitorConfig struct {
 	JobInterval string `yaml:"job-interval"`
 }
 
+type CacheUpdateOutboxConfig struct {
+	Enabled        bool   `yaml:"enabled"`
+	IdleInterval   string `yaml:"idle-interval"`
+	ActiveInterval string `yaml:"active-interval"`
+	BatchSize      int    `yaml:"batch-size"`
+	MaxRetries     int    `yaml:"max-retries"`
+}
+
+type RedisConfig struct {
+	Enabled   bool   `yaml:"enabled"`
+	RedisAddr string `yaml:"address"`
+	TTL       string `yaml:"ttl"`
+}
+
 type EtcdConfig struct {
+	Enabled     bool     `yaml:"enabled"`
 	Endpoints   []string `yaml:"endpoints"`
 	DialTimeout string   `yaml:"dial-timeout"`
 	ConfigKey   string   `yaml:"config-key"`

@@ -47,6 +47,18 @@ func (s *Service) Confirm(ctx context.Context, ids []int64) error {
 			return fmt.Errorf("Confirm: %w", err)
 		}
 
-		return s.db.ReservationsRepo().WithTx(tx).DeleteByIds(ctx, ids)
+		if err = s.db.ReservationsRepo().WithTx(tx).DeleteByIds(ctx, ids); err != nil {
+			return fmt.Errorf("Confirm: %w", err)
+		}
+
+		//TODO: сделать батчевую вставку
+		cacheOutbox := s.db.CacheUpdateOutboxRepo().WithTx(tx)
+		for sku := range reservationSumsBySku {
+			if err = cacheOutbox.Create(ctx, sku); err != nil {
+				return fmt.Errorf("Confirm: save cache_update_outbox: %w", err)
+			}
+		}
+
+		return nil
 	})
 }

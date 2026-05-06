@@ -13,9 +13,14 @@ type MetricCollectorRepository interface {
 	GetCount(ctx context.Context, isDeadLetter bool) (int64, error)
 }
 
+type CacheUpdateMetricCollectorRepository interface {
+	CountPending(ctx context.Context) (int64, error)
+	CountDeadLetters(ctx context.Context) (int64, error)
+}
+
 type MetricCollectorMetrics interface {
-	SetPending(count int64)
-	SetDeadLetter(count int64)
+	SetPending(outboxName string, count int64)
+	SetDeadLetter(outboxName string, count int64)
 	SetAcquiredConns(n int32)
 	SetIdleConns(n int32)
 	SetTotalConns(n int32)
@@ -24,7 +29,8 @@ type MetricCollectorMetrics interface {
 }
 
 type MetricCollectorJob struct {
-	repo                MetricCollectorRepository
+	productEventsRepo   MetricCollectorRepository
+	cacheUpdateRepo     CacheUpdateMetricCollectorRepository
 	pool                *pgxpool.Pool
 	metrics             MetricCollectorMetrics
 	cfgStore            *config.ConfigStore
@@ -33,16 +39,18 @@ type MetricCollectorJob struct {
 }
 
 func NewMetricCollectorJob(
-	repo MetricCollectorRepository,
+	productEventsRepo MetricCollectorRepository,
+	cacheUpdateRepo CacheUpdateMetricCollectorRepository,
 	pool *pgxpool.Pool,
 	metrics MetricCollectorMetrics,
 	cfgStore *config.ConfigStore,
 ) *MetricCollectorJob {
 	return &MetricCollectorJob{
-		repo:     repo,
-		pool:     pool,
-		metrics:  metrics,
-		cfgStore: cfgStore,
+		productEventsRepo: productEventsRepo,
+		cacheUpdateRepo:   cacheUpdateRepo,
+		pool:              pool,
+		metrics:           metrics,
+		cfgStore:          cfgStore,
 	}
 }
 
@@ -72,19 +80,34 @@ func (j *MetricCollectorJob) Run(ctx context.Context) {
 }
 
 func (j *MetricCollectorJob) tick(ctx context.Context) {
-	// Outbox metrics
-	pending, err := j.repo.GetCount(ctx, false)
+	// ProductEvent outbox metrics
+	pending, err := j.productEventsRepo.GetCount(ctx, false)
 	if err != nil {
-		slog.ErrorContext(ctx, "MetricCollectorJob: CountPending failed", "err", err)
+		slog.ErrorContext(ctx, "MetricCollectorJob: ProductEvents CountPending failed", "err", err)
 	} else {
-		j.metrics.SetPending(pending)
+		j.metrics.SetPending("ProductEvent", pending)
 	}
 
-	deadLetters, err := j.repo.GetCount(ctx, true)
+	deadLetters, err := j.productEventsRepo.GetCount(ctx, true)
 	if err != nil {
-		slog.ErrorContext(ctx, "MetricCollectorJob: CountDeadLetters failed", "err", err)
+		slog.ErrorContext(ctx, "MetricCollectorJob: ProductEvents CountDeadLetters failed", "err", err)
 	} else {
-		j.metrics.SetDeadLetter(deadLetters)
+		j.metrics.SetDeadLetter("ProductEvent", deadLetters)
+	}
+
+	// CacheUpdate outbox metrics
+	cacheUpdatePending, err := j.cacheUpdateRepo.CountPending(ctx)
+	if err != nil {
+		slog.ErrorContext(ctx, "MetricCollectorJob: CacheUpdate CountPending failed", "err", err)
+	} else {
+		j.metrics.SetPending("CacheUpdate", cacheUpdatePending)
+	}
+
+	cacheUpdateDeadLetters, err := j.cacheUpdateRepo.CountDeadLetters(ctx)
+	if err != nil {
+		slog.ErrorContext(ctx, "MetricCollectorJob: CacheUpdate CountDeadLetters failed", "err", err)
+	} else {
+		j.metrics.SetDeadLetter("CacheUpdate", cacheUpdateDeadLetters)
 	}
 
 	// Pool metrics

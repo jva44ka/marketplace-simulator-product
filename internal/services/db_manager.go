@@ -9,7 +9,7 @@ import (
 )
 
 type ProductRepository interface {
-	GetBySku(ctx context.Context, sku uint64) (*models.Product, error)
+	GetBySku(ctx context.Context, sku uint64, txId *uint32) (*models.Product, error)
 	GetBySkus(ctx context.Context, skus []uint64) ([]*models.Product, error)
 	WithTx(tx pgx.Tx) ProductTxRepository
 }
@@ -41,9 +41,24 @@ type ProductEventsOutboxTxRepository interface {
 	Create(ctx context.Context, record models.ProductEventOutboxRecordNew) error
 }
 
+type CacheUpdateOutboxRepository interface {
+	GetPending(ctx context.Context, limit int) ([]models.CacheUpdateOutboxRecord, error)
+	CountPending(ctx context.Context) (int64, error)
+	CountDeadLetters(ctx context.Context) (int64, error)
+	DeleteBatch(ctx context.Context, ids []uuid.UUID) error
+	IncrementRetry(ctx context.Context, id uuid.UUID) error
+	MarkDeadLetter(ctx context.Context, id uuid.UUID, reason string) error
+	WithTx(tx pgx.Tx) CacheUpdateOutboxTxRepository
+}
+
+type CacheUpdateOutboxTxRepository interface {
+	Create(ctx context.Context, sku uint64) error
+}
+
 type DBManager interface {
 	ProductsRepo() ProductRepository
 	ReservationsRepo() ReservationRepository
 	ProductEventsOutboxRepo() ProductEventsOutboxRepository
+	CacheUpdateOutboxRepo() CacheUpdateOutboxRepository
 	InTransaction(ctx context.Context, fn func(tx pgx.Tx) error) error
 }

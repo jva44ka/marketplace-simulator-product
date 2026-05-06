@@ -76,6 +76,10 @@ service Products {
 
 message GetProductRequest {
   uint64 sku = 1;
+  // Optional PostgreSQL xmin of a previously seen version.
+  // If provided and the cached record's xmin is older, the cache is bypassed
+  // and a fresh value is read from the database (read-your-own-writes guarantee).
+  optional uint32 transaction_id = 2;
 }
 
 message GetProductResponse {
@@ -83,6 +87,10 @@ message GetProductResponse {
   string name = 2;
   uint32 count = 3;
   double price = 4;
+  // Current PostgreSQL xmin of this product record.
+  // Pass this value back in a subsequent GetProduct request to guarantee
+  // you receive a version at least as fresh as this one.
+  uint32 transaction_id = 5;
 }
 
 message IncreaseProductCountRequest {

@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	pb "github.com/jva44ka/marketplace-simulator-product/internal/app/pb/marketplace-simulator-product/api/v1/proto"
+	"github.com/jva44ka/marketplace-simulator-product/internal/models"
 	"github.com/jva44ka/marketplace-simulator-product/internal/services/product"
 	"github.com/jva44ka/marketplace-simulator-product/internal/services/reservation"
 	"google.golang.org/grpc/codes"
@@ -19,8 +20,14 @@ type GrpcService struct {
 	reservationService *reservation.Service
 }
 
-func NewGrpcService(svc *product.Service, resSvc *reservation.Service) *GrpcService {
-	return &GrpcService{productService: svc, reservationService: resSvc}
+func NewGrpcService(
+	svc *product.Service,
+	resSvc *reservation.Service,
+) *GrpcService {
+	return &GrpcService{
+		productService:     svc,
+		reservationService: resSvc,
+	}
 }
 
 func (s *GrpcService) GetProduct(ctx context.Context, request *pb.GetProductRequest) (*pb.GetProductResponse, error) {
@@ -28,17 +35,12 @@ func (s *GrpcService) GetProduct(ctx context.Context, request *pb.GetProductRequ
 		return nil, status.Errorf(codes.InvalidArgument, "sku must be more than zero")
 	}
 
-	p, err := s.productService.GetBySku(ctx, request.Sku)
+	p, err := s.productService.GetBySku(ctx, request.Sku, request.TransactionId)
 	if err != nil {
 		return nil, fmt.Errorf("GrpcService.GetProduct: %w", err)
 	}
 
-	return &pb.GetProductResponse{
-		Sku:   p.Sku,
-		Name:  p.Name,
-		Price: p.Price,
-		Count: p.Count - p.ReservedCount,
-	}, nil
+	return productToResponse(p), nil
 }
 
 func (s *GrpcService) IncreaseProductCount(
@@ -136,4 +138,16 @@ func (s *GrpcService) ConfirmReservation(
 	}
 
 	return &pb.ConfirmReservationResponse{}, nil
+}
+
+// --- helpers ---
+
+func productToResponse(p *models.Product) *pb.GetProductResponse {
+	return &pb.GetProductResponse{
+		Sku:           p.Sku,
+		Name:          p.Name,
+		Price:         p.Price,
+		Count:         p.Count - p.ReservedCount,
+		TransactionId: p.TransactionId,
+	}
 }
