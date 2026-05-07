@@ -118,16 +118,13 @@ func NewApp(ctx context.Context, cfg *config.Config) (*App, error) {
 	}
 
 	dbMetrics := metrics.NewDbMetrics()
-	db := database.NewDBManager(pool, dbMetrics, dbMetrics)
+	transactor := database.NewTransactor(pool)
+	rawProductRepo := database.NewProductPgxRepository(pool, dbMetrics)
+	reservationRepo := database.NewReservationPgxRepository(pool, dbMetrics)
+	productEventsOutboxRepo := database.NewProductEventsOutboxRepository(pool)
+	cacheUpdateOutboxRepo := database.NewCacheUpdateOutboxRepository(pool)
+
 	producer := kafka.NewProductEventsProducer(currentCfg.Kafka.Brokers, currentCfg.Kafka.ProductEventsTopic, kafkaWriteTimeout)
-
-	// Keep a reference to the raw (non-cached) product repo for the cache-update
-	// outbox job: that job must always read from Postgres to get the authoritative
-	// state before writing it into Redis.
-	rawProductRepo := db.ProductsRepo()
-
-	productService := product.NewService(db)
-	reservationService := reservation.NewService(db)
 
 	// --- Redis cache (optional; graceful degradation if nil or unavailable) ---
 	cacheMetrics := metrics.NewCacheMetrics()
@@ -147,17 +144,20 @@ func NewApp(ctx context.Context, cfg *config.Config) (*App, error) {
 	// Wrap the plain product repository with the cache decorator so that all
 	// read paths (GetBySku) benefit from Redis without any cache logic leaking
 	// into the service or transport layers.
-	db.SetProductsRepo(cacheProduct.NewCachedProductRepository(rawProductRepo, productCache, cacheMetrics))
+	cachedProductRepo := cacheProduct.NewCachedProductRepository(rawProductRepo, productCache, cacheMetrics)
+
+	productService := product.NewService(transactor, cachedProductRepo, productEventsOutboxRepo, cacheUpdateOutboxRepo)
+	reservationService := reservation.NewService(transactor, cachedProductRepo, reservationRepo, productEventsOutboxRepo, cacheUpdateOutboxRepo)
 
 	reservationExpiryJob := jobs.NewReservationExpiryJob(
-		db.ReservationPgxRepo(),
+		reservationRepo,
 		reservationService,
 		cfgStore,
 	)
 
 	outboxMetrics := metrics.NewProductEventOutboxMetrics()
 	outboxJob := jobs.NewProductEventsOutboxJob(
-		db,
+		productEventsOutboxRepo,
 		producer,
 		outboxMetrics,
 		cfgStore,
@@ -165,7 +165,7 @@ func NewApp(ctx context.Context, cfg *config.Config) (*App, error) {
 
 	cacheUpdateOutboxMetrics := metrics.NewCacheUpdateOutboxMetrics()
 	cacheUpdateOutboxJob := jobs.NewCacheUpdateOutboxJob(
-		db,             // satisfies CacheUpdateDBManager via CacheUpdateOutboxRepo()
+		cacheUpdateOutboxRepo,
 		rawProductRepo, // must bypass cache: the job's job is to populate it
 		productCache,
 		cacheUpdateOutboxMetrics,
@@ -174,8 +174,8 @@ func NewApp(ctx context.Context, cfg *config.Config) (*App, error) {
 
 	metricCollectorMetrics := metrics.NewMetricCollectorMetrics()
 	metricCollectorJob := jobs.NewMetricCollectorJob(
-		db.ProductEventsOutboxRepo(),
-		db.CacheUpdateOutboxRepo(),
+		productEventsOutboxRepo,
+		cacheUpdateOutboxRepo,
 		pool,
 		metricCollectorMetrics,
 		cfgStore,

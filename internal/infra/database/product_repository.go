@@ -1,4 +1,4 @@
-package repositories
+package database
 
 import (
 	"context"
@@ -12,27 +12,18 @@ import (
 	"github.com/jva44ka/marketplace-simulator-product/internal/services"
 )
 
-type RepositoryMetrics interface {
+type ProductRepositoryMetrics interface {
 	ReportRequest(method, status string, duration time.Duration)
 	ReportOptimisticLockFailure()
 }
 
 type ProductPgxRepository struct {
 	pool    *pgxpool.Pool
-	metrics RepositoryMetrics
+	metrics ProductRepositoryMetrics
 }
 
-func NewProductPgxRepository(pool *pgxpool.Pool, metrics RepositoryMetrics) *ProductPgxRepository {
+func NewProductPgxRepository(pool *pgxpool.Pool, metrics ProductRepositoryMetrics) *ProductPgxRepository {
 	return &ProductPgxRepository{pool: pool, metrics: metrics}
-}
-
-type ProductPgxTxRepository struct {
-	tx      pgx.Tx
-	metrics RepositoryMetrics
-}
-
-func (r *ProductPgxRepository) WithTx(tx pgx.Tx) services.ProductTxRepository {
-	return &ProductPgxTxRepository{tx: tx, metrics: r.metrics}
 }
 
 type productRow struct {
@@ -44,7 +35,8 @@ type productRow struct {
 	xmin          uint32
 }
 
-// txId used only by cache decorator
+// GetBySku returns nil (not an error) when the product doesn't exist.
+// txId is used only by the cache decorator layer and is ignored here.
 func (r *ProductPgxRepository) GetBySku(ctx context.Context, sku uint64, _ *uint32) (*models.Product, error) {
 	products, err := r.GetBySkus(ctx, []uint64{sku})
 	if err != nil {
@@ -66,7 +58,7 @@ WHERE sku = ANY($1);`
 	rows, err := r.pool.Query(ctx, query, skus)
 	if err != nil {
 		r.metrics.ReportRequest("GetBySkus", "error", time.Since(start))
-		return nil, fmt.Errorf("ProductRepository.GetBySkus: %w", err)
+		return nil, fmt.Errorf("ProductPgxRepository.GetBySkus: %w", err)
 	}
 	defer rows.Close()
 
@@ -75,7 +67,7 @@ WHERE sku = ANY($1);`
 		var row productRow
 		if err = rows.Scan(&row.sku, &row.price, &row.name, &row.count, &row.reservedCount, &row.xmin); err != nil {
 			r.metrics.ReportRequest("GetBySkus", "error", time.Since(start))
-			return nil, fmt.Errorf("ProductRepository.GetBySkus: %w", err)
+			return nil, fmt.Errorf("ProductPgxRepository.GetBySkus: %w", err)
 		}
 		products = append(products, &models.Product{
 			Sku:           uint64(row.sku),
@@ -89,6 +81,15 @@ WHERE sku = ANY($1);`
 
 	r.metrics.ReportRequest("GetBySkus", "success", time.Since(start))
 	return products, nil
+}
+
+func (r *ProductPgxRepository) WithTx(tx pgx.Tx) services.ProductTxRepository {
+	return &ProductPgxTxRepository{tx: tx, metrics: r.metrics}
+}
+
+type ProductPgxTxRepository struct {
+	tx      pgx.Tx
+	metrics ProductRepositoryMetrics
 }
 
 func (r *ProductPgxTxRepository) Update(ctx context.Context, products []*models.Product) error {
@@ -112,7 +113,7 @@ WHERE sku = $1 AND xmin = $2;`
 	for range products {
 		tag, err := results.Exec()
 		if err != nil {
-			return fmt.Errorf("ProductRepository.Update: %w", err)
+			return fmt.Errorf("ProductPgxTxRepository.Update: %w", err)
 		}
 		affected += tag.RowsAffected()
 	}
@@ -120,7 +121,7 @@ WHERE sku = $1 AND xmin = $2;`
 	if affected != int64(len(products)) {
 		r.metrics.ReportRequest("Update", "error", time.Since(start))
 		r.metrics.ReportOptimisticLockFailure()
-		return fmt.Errorf("ProductRepository.Update: %w", appErrors.NewOptimisticLockError())
+		return fmt.Errorf("ProductPgxTxRepository.Update: %w", appErrors.NewOptimisticLockError())
 	}
 
 	r.metrics.ReportRequest("Update", "success", time.Since(start))

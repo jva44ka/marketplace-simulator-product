@@ -10,11 +10,24 @@ import (
 )
 
 type Service struct {
-	db services.DBManager
+	transactor    services.Transactor
+	products      services.ProductRepository
+	productOutbox services.ProductEventsOutboxRepository
+	cacheOutbox   services.CacheUpdateOutboxRepository
 }
 
-func NewService(db services.DBManager) *Service {
-	return &Service{db: db}
+func NewService(
+	transactor services.Transactor,
+	products services.ProductRepository,
+	productOutbox services.ProductEventsOutboxRepository,
+	cacheOutbox services.CacheUpdateOutboxRepository,
+) *Service {
+	return &Service{
+		transactor:    transactor,
+		products:      products,
+		productOutbox: productOutbox,
+		cacheOutbox:   cacheOutbox,
+	}
 }
 
 type UpdateCount struct {

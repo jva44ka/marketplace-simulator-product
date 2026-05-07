@@ -7,17 +7,11 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 	kafkaContracts "github.com/jva44ka/marketplace-simulator-product/api_internal/kafka"
 	"github.com/jva44ka/marketplace-simulator-product/internal/infra/config"
 	"github.com/jva44ka/marketplace-simulator-product/internal/models"
 	"github.com/jva44ka/marketplace-simulator-product/internal/services"
 )
-
-type DBManager interface {
-	ProductEventsOutboxRepo() services.ProductEventsOutboxRepository
-	InTransaction(ctx context.Context, fn func(tx pgx.Tx) error) error
-}
 
 type OutboxKafkaProducer interface {
 	PublishProductChangedBatch(ctx context.Context, events []kafkaContracts.ProductEventMessage) error
@@ -31,23 +25,23 @@ type OutboxJobMetrics interface {
 }
 
 type ProductEventsOutboxJob struct {
-	db       DBManager
-	producer OutboxKafkaProducer
-	metrics  OutboxJobMetrics
-	cfgStore *config.ConfigStore
+	outboxRepo services.ProductEventsOutboxRepository
+	producer   OutboxKafkaProducer
+	metrics    OutboxJobMetrics
+	cfgStore   *config.ConfigStore
 }
 
 func NewProductEventsOutboxJob(
-	db DBManager,
+	outboxRepo services.ProductEventsOutboxRepository,
 	producer OutboxKafkaProducer,
 	metrics OutboxJobMetrics,
 	cfgStore *config.ConfigStore,
 ) *ProductEventsOutboxJob {
 	return &ProductEventsOutboxJob{
-		db:       db,
-		producer: producer,
-		metrics:  metrics,
-		cfgStore: cfgStore,
+		outboxRepo: outboxRepo,
+		producer:   producer,
+		metrics:    metrics,
+		cfgStore:   cfgStore,
 	}
 }
 
@@ -96,7 +90,7 @@ func (j *ProductEventsOutboxJob) tick(ctx context.Context, batchSize int, maxRet
 		j.metrics.ReportTickDuration(time.Since(tickStart))
 	}()
 
-	outboxRecords, err := j.db.ProductEventsOutboxRepo().GetPending(ctx, batchSize)
+	outboxRecords, err := j.outboxRepo.GetPending(ctx, batchSize)
 	if err != nil {
 		slog.ErrorContext(ctx, "ProductEventsOutboxJob: GetPending failed", "err", err)
 		return 0
@@ -125,18 +119,13 @@ func (j *ProductEventsOutboxJob) tick(ctx context.Context, batchSize int, maxRet
 		outboxRecord := outboxRecordsMap[failedRecordId]
 
 		if outboxRecord.RetryCount+1 >= maxRetryCount {
-			err = j.db.ProductEventsOutboxRepo().MarkDeadLetter(
-				ctx,
-				failedRecordId,
-				failedRecordReason)
+			err = j.outboxRepo.MarkDeadLetter(ctx, failedRecordId, failedRecordReason)
 			if err != nil {
 				slog.ErrorContext(ctx, "MarkDeadLetter failed with error", "err", err)
 			}
 			deadLetterCount++
 		} else {
-			err = j.db.ProductEventsOutboxRepo().IncrementRetry(
-				ctx,
-				failedRecordId)
+			err = j.outboxRepo.IncrementRetry(ctx, failedRecordId)
 			if err != nil {
 				slog.ErrorContext(ctx, "IncrementRetry failed with error", "err", err)
 			}
@@ -144,9 +133,7 @@ func (j *ProductEventsOutboxJob) tick(ctx context.Context, batchSize int, maxRet
 		}
 	}
 
-	err = j.db.ProductEventsOutboxRepo().DeleteBatch(
-		ctx,
-		processBatchResult.SuccessRecords)
+	err = j.outboxRepo.DeleteBatch(ctx, processBatchResult.SuccessRecords)
 	if err != nil {
 		slog.ErrorContext(ctx, "DeleteBatch failed with error", "err", err)
 	}

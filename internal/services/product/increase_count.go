@@ -12,13 +12,11 @@ import (
 )
 
 func (s *Service) IncreaseCount(ctx context.Context, products []UpdateCount) error {
-	existingProductsMap, err := validateProductsExist(ctx, products, s.db.ProductsRepo())
+	existingProductsMap, err := validateProductsExist(ctx, products, s.products)
 	if err != nil {
 		return fmt.Errorf("ProductService.IncreaseCount: %w", err)
 	}
 
-	// Копируем old state до изменений
-	//TODO: дубль в reservations/release и reservations/reserve
 	oldState := getProductMapSnapshot(existingProductsMap)
 	recordBuilder := outbox.NewProductEventRecordBuilder(oldState)
 
@@ -32,20 +30,19 @@ func (s *Service) IncreaseCount(ctx context.Context, products []UpdateCount) err
 		return fmt.Errorf("ProductService.IncreaseCount: %w", err)
 	}
 
-	return s.db.InTransaction(ctx, func(tx pgx.Tx) error {
-		if err = s.db.ProductsRepo().WithTx(tx).Update(ctx, slices.Collect(maps.Values(existingProductsMap))); err != nil {
+	return s.transactor.InTransaction(ctx, func(tx pgx.Tx) error {
+		if err = s.products.WithTx(tx).Update(ctx, slices.Collect(maps.Values(existingProductsMap))); err != nil {
 			return fmt.Errorf("IncreaseCount: %w", err)
 		}
 
 		for _, outboxRecord := range outboxRecords {
-			if err = s.db.ProductEventsOutboxRepo().WithTx(tx).Create(ctx, outboxRecord); err != nil {
-				return fmt.Errorf("IncreaseCount: save outbox_record_builder: %w", err)
+			if err = s.productOutbox.WithTx(tx).Create(ctx, outboxRecord); err != nil {
+				return fmt.Errorf("IncreaseCount: save outbox_record: %w", err)
 			}
 		}
 
-		cacheOutbox := s.db.CacheUpdateOutboxRepo().WithTx(tx)
 		for _, p := range products {
-			if err = cacheOutbox.Create(ctx, p.Sku); err != nil {
+			if err = s.cacheOutbox.WithTx(tx).Create(ctx, p.Sku); err != nil {
 				return fmt.Errorf("IncreaseCount: save cache_update_outbox: %w", err)
 			}
 		}
@@ -56,10 +53,8 @@ func (s *Service) IncreaseCount(ctx context.Context, products []UpdateCount) err
 
 func getProductMapSnapshot(productMap map[uint64]*models.Product) map[uint64]models.Product {
 	snapshot := make(map[uint64]models.Product, len(productMap))
-
-	for sku, productMapItem := range productMap {
-		snapshot[sku] = *productMapItem
+	for sku, p := range productMap {
+		snapshot[sku] = *p
 	}
-
 	return snapshot
 }

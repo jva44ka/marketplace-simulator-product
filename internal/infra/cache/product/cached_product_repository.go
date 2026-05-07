@@ -96,6 +96,8 @@ func (r *CachedProductRepository) GetBySkus(ctx context.Context, skus []uint64) 
 	return result, nil
 }
 
+// WithTx delegates to the underlying DB repository so transaction-bound writes
+// (e.g. Update) go through the same pgx.Tx.
 func (r *CachedProductRepository) WithTx(tx pgx.Tx) services.ProductTxRepository {
 	return r.db.WithTx(tx)
 }

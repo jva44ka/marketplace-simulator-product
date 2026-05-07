@@ -6,19 +6,33 @@ import (
 )
 
 type Service struct {
-	db services.DBManager
+	transactor    services.Transactor
+	products      services.ProductRepository
+	reservations  services.ReservationRepository
+	productOutbox services.ProductEventsOutboxRepository
+	cacheOutbox   services.CacheUpdateOutboxRepository
 }
 
-func NewService(db services.DBManager) *Service {
-	return &Service{db: db}
+func NewService(
+	transactor services.Transactor,
+	products services.ProductRepository,
+	reservations services.ReservationRepository,
+	productOutbox services.ProductEventsOutboxRepository,
+	cacheOutbox services.CacheUpdateOutboxRepository,
+) *Service {
+	return &Service{
+		transactor:    transactor,
+		products:      products,
+		reservations:  reservations,
+		productOutbox: productOutbox,
+		cacheOutbox:   cacheOutbox,
+	}
 }
 
 func getProductMapSnapshot(productMap map[uint64]*models.Product) map[uint64]models.Product {
 	snapshot := make(map[uint64]models.Product, len(productMap))
-
-	for sku, productMapItem := range productMap {
-		snapshot[sku] = *productMapItem
+	for sku, p := range productMap {
+		snapshot[sku] = *p
 	}
-
 	return snapshot
 }

@@ -11,7 +11,7 @@ import (
 )
 
 func (s *Service) Confirm(ctx context.Context, ids []int64) error {
-	reservations, err := s.db.ReservationsRepo().GetByIds(ctx, ids)
+	reservations, err := s.reservations.GetByIds(ctx, ids)
 	if err != nil {
 		return fmt.Errorf("ReservationService.Confirm: %w", err)
 	}
@@ -26,7 +26,7 @@ func (s *Service) Confirm(ctx context.Context, ids []int64) error {
 	}
 
 	skus := slices.Collect(maps.Keys(reservationSumsBySku))
-	products, err := s.db.ProductsRepo().GetBySkus(ctx, skus)
+	products, err := s.products.GetBySkus(ctx, skus)
 	if err != nil {
 		return fmt.Errorf("ReservationService.Confirm: %w", err)
 	}
@@ -42,19 +42,18 @@ func (s *Service) Confirm(ctx context.Context, ids []int64) error {
 		productMap[product.Sku].ReservedCount -= delta
 	}
 
-	return s.db.InTransaction(ctx, func(tx pgx.Tx) error {
-		if err = s.db.ProductsRepo().WithTx(tx).Update(ctx, slices.Collect(maps.Values(productMap))); err != nil {
+	return s.transactor.InTransaction(ctx, func(tx pgx.Tx) error {
+		if err = s.products.WithTx(tx).Update(ctx, slices.Collect(maps.Values(productMap))); err != nil {
 			return fmt.Errorf("Confirm: %w", err)
 		}
 
-		if err = s.db.ReservationsRepo().WithTx(tx).DeleteByIds(ctx, ids); err != nil {
+		if err = s.reservations.WithTx(tx).DeleteByIds(ctx, ids); err != nil {
 			return fmt.Errorf("Confirm: %w", err)
 		}
 
 		//TODO: сделать батчевую вставку
-		cacheOutbox := s.db.CacheUpdateOutboxRepo().WithTx(tx)
 		for sku := range reservationSumsBySku {
-			if err = cacheOutbox.Create(ctx, sku); err != nil {
+			if err = s.cacheOutbox.WithTx(tx).Create(ctx, sku); err != nil {
 				return fmt.Errorf("Confirm: save cache_update_outbox: %w", err)
 			}
 		}
