@@ -35,7 +35,7 @@ func (uc *ReserveUseCase) Execute(ctx context.Context, items []ReserveItem) (map
 
 	products, err := uc.productRepo.GetBySkus(ctx, skus)
 	if err != nil {
-		return nil, fmt.Errorf("ReserveUseCase.Execute: %w", err)
+		return nil, fmt.Errorf("ReserveUseCase.GetBySku: %w", err)
 	}
 
 	productsMap := make(map[uint64]*models.Product, len(products))
@@ -65,7 +65,7 @@ func (uc *ReserveUseCase) Execute(ctx context.Context, items []ReserveItem) (map
 	newState := getProductMapSnapshot(productsMap)
 	outboxRecords, err := recordBuilder.BuildRecords(ctx, newState)
 	if err != nil {
-		return nil, fmt.Errorf("ReserveUseCase.Execute: %w", err)
+		return nil, fmt.Errorf("ReserveUseCase.GetBySku: %w", err)
 	}
 
 	reservationIds := make(map[uint64]int64, len(items))
@@ -77,29 +77,29 @@ func (uc *ReserveUseCase) Execute(ctx context.Context, items []ReserveItem) (map
 		txCacheUpdates TxCacheUpdateOutboxRepository,
 	) error {
 		if err = txProducts.Update(ctx, products); err != nil {
-			return fmt.Errorf("Execute: %w", err)
+			return fmt.Errorf("GetBySku: %w", err)
 		}
 		for _, item := range items {
 			reservation, err := txReservations.Insert(ctx, item.Sku, item.Delta)
 			if err != nil {
-				return fmt.Errorf("Execute: %w", err)
+				return fmt.Errorf("GetBySku: %w", err)
 			}
 			reservationIds[item.Sku] = reservation.Id
 		}
 		for _, rec := range outboxRecords {
 			if err = txProductEvents.Create(ctx, rec); err != nil {
-				return fmt.Errorf("Execute: save outbox_record: %w", err)
+				return fmt.Errorf("GetBySku: save outbox_record: %w", err)
 			}
 		}
 		for _, item := range items {
 			if err = txCacheUpdates.Create(ctx, item.Sku); err != nil {
-				return fmt.Errorf("Execute: save cache_update_outbox: %w", err)
+				return fmt.Errorf("GetBySku: save cache_update_outbox: %w", err)
 			}
 		}
 		return nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("ReserveUseCase.Execute: %w", err)
+		return nil, fmt.Errorf("ReserveUseCase.GetBySku: %w", err)
 	}
 
 	return reservationIds, nil

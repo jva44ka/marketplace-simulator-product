@@ -8,7 +8,7 @@ import (
 )
 
 type productDbRepository interface {
-	Execute(ctx context.Context, sku uint64, txId *uint32) (*models.Product, error)
+	GetBySku(ctx context.Context, sku uint64, txId *uint32) (*models.Product, error)
 	GetBySkus(ctx context.Context, skus []uint64) ([]*models.Product, error)
 }
 
@@ -26,11 +26,11 @@ func NewCachedProductRepository(
 	return &CachedProductRepository{db: db, cache: productCache, metrics: metrics}
 }
 
-func (r *CachedProductRepository) Execute(ctx context.Context, sku uint64, txId *uint32) (*models.Product, error) {
+func (r *CachedProductRepository) GetBySku(ctx context.Context, sku uint64, txId *uint32) (*models.Product, error) {
 	if r.cache != nil {
 		productFromCache, err := r.cache.Get(ctx, sku)
 		if err != nil {
-			slog.WarnContext(ctx, "CachedProductRepository.Execute: cache get failed, falling back to DB",
+			slog.WarnContext(ctx, "CachedProductRepository.GetBySku: cache get failed, falling back to DB",
 				"sku", sku, "err", err)
 		} else if productFromCache != nil {
 			if txId == nil || productFromCache.TransactionId >= *txId {
@@ -40,7 +40,7 @@ func (r *CachedProductRepository) Execute(ctx context.Context, sku uint64, txId 
 			if r.metrics != nil {
 				r.metrics.ReportOperation("get", "stale", 0)
 			}
-			slog.DebugContext(ctx, "CachedProductRepository.Execute: stale xmin, fetching from DB",
+			slog.DebugContext(ctx, "CachedProductRepository.GetBySku: stale xmin, fetching from DB",
 				"sku", sku,
 				"cached_xmin", productFromCache.TransactionId,
 				"required_xmin", *txId,
@@ -48,7 +48,7 @@ func (r *CachedProductRepository) Execute(ctx context.Context, sku uint64, txId 
 		}
 	}
 
-	product, err := r.db.Execute(ctx, sku, nil)
+	product, err := r.db.GetBySku(ctx, sku, nil)
 	if err != nil {
 		return nil, err
 	}

@@ -44,7 +44,7 @@ func (s *GrpcService) GetProduct(ctx context.Context, request *pb.GetProductRequ
 		return nil, status.Errorf(codes.InvalidArgument, "sku must be more than zero")
 	}
 
-	p, err := s.getProduct.Execute(ctx, request.Sku, request.TransactionId)
+	p, err := s.getProduct.GetBySku(ctx, request.Sku, request.TransactionId)
 	if err != nil {
 		return nil, fmt.Errorf("GrpcService.GetProduct: %w", err)
 	}

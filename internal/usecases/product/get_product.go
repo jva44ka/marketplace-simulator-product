@@ -16,10 +16,10 @@ func NewGetProductUseCase(products ReadProductRepository) *GetProductUseCase {
 	return &GetProductUseCase{products: products}
 }
 
-func (uc *GetProductUseCase) Execute(ctx context.Context, sku uint64, txId *uint32) (*models.Product, error) {
-	product, err := uc.products.Execute(ctx, sku, txId)
+func (uc *GetProductUseCase) GetBySku(ctx context.Context, sku uint64, txId *uint32) (*models.Product, error) {
+	product, err := uc.products.GetBySku(ctx, sku, txId)
 	if err != nil {
-		return nil, fmt.Errorf("productRepository.Execute: %w", err)
+		return nil, fmt.Errorf("productRepository.GetBySku: %w", err)
 	}
 	if product == nil {
 		return nil, errors.NewProductNotFoundError(sku)

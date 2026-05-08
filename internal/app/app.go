@@ -144,7 +144,7 @@ func NewApp(ctx context.Context, cfg *config.Config) (*App, error) {
 	}
 
 	// Wrap the plain product repository with the cache decorator so that all
-	// read paths (Execute) benefit from Redis without any cache logic leaking
+	// read paths (GetBySku) benefit from Redis without any cache logic leaking
 	// into the service or transport layers.
 	cachedProductRepo := cacheProduct.NewCachedProductRepository(rawProductRepo, productCache, cacheMetrics)
 

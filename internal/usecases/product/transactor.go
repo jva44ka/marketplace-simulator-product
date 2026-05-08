@@ -7,7 +7,7 @@ import (
 )
 
 type ReadProductRepository interface {
-	Execute(ctx context.Context, sku uint64, txId *uint32) (*models.Product, error)
+	GetBySku(ctx context.Context, sku uint64, txId *uint32) (*models.Product, error)
 	GetBySkus(ctx context.Context, skus []uint64) ([]*models.Product, error)
 }
 
