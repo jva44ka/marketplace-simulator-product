@@ -6,8 +6,8 @@ import (
 
 	pb "github.com/jva44ka/marketplace-simulator-product/internal/app/pb/marketplace-simulator-product/api/v1/proto"
 	"github.com/jva44ka/marketplace-simulator-product/internal/models"
-	"github.com/jva44ka/marketplace-simulator-product/internal/services/product"
-	"github.com/jva44ka/marketplace-simulator-product/internal/services/reservation"
+	ucProduct "github.com/jva44ka/marketplace-simulator-product/internal/usecases/product"
+	ucReservation "github.com/jva44ka/marketplace-simulator-product/internal/usecases/reservation"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -16,17 +16,26 @@ var _ pb.ProductsServer = (*GrpcService)(nil)
 
 type GrpcService struct {
 	pb.UnimplementedProductsServer
-	productService     *product.Service
-	reservationService *reservation.Service
+	getProduct    *ucProduct.GetProductUseCase
+	increaseCount *ucProduct.IncreaseCountUseCase
+	reserve       *ucReservation.ReserveUseCase
+	release       *ucReservation.ReleaseUseCase
+	confirm       *ucReservation.ConfirmUseCase
 }
 
 func NewGrpcService(
-	svc *product.Service,
-	resSvc *reservation.Service,
+	getProduct *ucProduct.GetProductUseCase,
+	increaseCount *ucProduct.IncreaseCountUseCase,
+	reserve *ucReservation.ReserveUseCase,
+	release *ucReservation.ReleaseUseCase,
+	confirm *ucReservation.ConfirmUseCase,
 ) *GrpcService {
 	return &GrpcService{
-		productService:     svc,
-		reservationService: resSvc,
+		getProduct:    getProduct,
+		increaseCount: increaseCount,
+		reserve:       reserve,
+		release:       release,
+		confirm:       confirm,
 	}
 }
 
@@ -35,7 +44,7 @@ func (s *GrpcService) GetProduct(ctx context.Context, request *pb.GetProductRequ
 		return nil, status.Errorf(codes.InvalidArgument, "sku must be more than zero")
 	}
 
-	p, err := s.productService.GetBySku(ctx, request.Sku, request.TransactionId)
+	p, err := s.getProduct.GetBySku(ctx, request.Sku, request.TransactionId)
 	if err != nil {
 		return nil, fmt.Errorf("GrpcService.GetProduct: %w", err)
 	}
@@ -51,7 +60,7 @@ func (s *GrpcService) IncreaseProductCount(
 	}
 
 	seenSkus := make(map[uint64]struct{}, len(request.Products))
-	products := make([]product.UpdateCount, 0, len(request.Products))
+	products := make([]ucProduct.UpdateCount, 0, len(request.Products))
 	for _, stock := range request.Products {
 		if stock.Sku < 1 {
 			return nil, status.Errorf(codes.InvalidArgument, "sku must be more than zero")
@@ -60,13 +69,13 @@ func (s *GrpcService) IncreaseProductCount(
 			return nil, status.Errorf(codes.InvalidArgument, "duplicate sku %d in request", stock.Sku)
 		}
 		seenSkus[stock.Sku] = struct{}{}
-		products = append(products, product.UpdateCount{
+		products = append(products, ucProduct.UpdateCount{
 			Sku:   stock.Sku,
 			Delta: stock.Count,
 		})
 	}
 
-	if err := s.productService.IncreaseCount(ctx, products); err != nil {
+	if err := s.increaseCount.IncreaseCount(ctx, products); err != nil {
 		return nil, fmt.Errorf("GrpcService.IncreaseProductCount: %w", err)
 	}
 
@@ -81,7 +90,7 @@ func (s *GrpcService) ReserveProduct(
 	}
 
 	seenSkus := make(map[uint64]struct{}, len(request.Products))
-	items := make([]reservation.ReserveItem, 0, len(request.Products))
+	items := make([]ucReservation.ReserveItem, 0, len(request.Products))
 	for _, stock := range request.Products {
 		if stock.Sku < 1 {
 			return nil, status.Errorf(codes.InvalidArgument, "sku must be more than zero")
@@ -90,13 +99,13 @@ func (s *GrpcService) ReserveProduct(
 			return nil, status.Errorf(codes.InvalidArgument, "duplicate sku %d in request", stock.Sku)
 		}
 		seenSkus[stock.Sku] = struct{}{}
-		items = append(items, reservation.ReserveItem{
+		items = append(items, ucReservation.ReserveItem{
 			Sku:   stock.Sku,
 			Delta: stock.Count,
 		})
 	}
 
-	reservationIds, err := s.reservationService.Reserve(ctx, items)
+	reservationIds, err := s.reserve.Reserve(ctx, items)
 	if err != nil {
 		return nil, fmt.Errorf("GrpcService.ReserveProduct: %w", err)
 	}
@@ -119,7 +128,7 @@ func (s *GrpcService) ReleaseReservation(
 		return nil, status.Errorf(codes.InvalidArgument, "reservation_ids must not be empty")
 	}
 
-	if err := s.reservationService.Release(ctx, request.ReservationIds); err != nil {
+	if err := s.release.Release(ctx, request.ReservationIds); err != nil {
 		return nil, fmt.Errorf("GrpcService.ReleaseReservation: %w", err)
 	}
 
@@ -133,7 +142,7 @@ func (s *GrpcService) ConfirmReservation(
 		return nil, status.Errorf(codes.InvalidArgument, "reservation_ids must not be empty")
 	}
 
-	if err := s.reservationService.Confirm(ctx, request.ReservationIds); err != nil {
+	if err := s.confirm.Confirm(ctx, request.ReservationIds); err != nil {
 		return nil, fmt.Errorf("GrpcService.ConfirmReservation: %w", err)
 	}
 

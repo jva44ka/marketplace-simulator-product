@@ -8,8 +8,16 @@ import (
 	"github.com/jva44ka/marketplace-simulator-product/internal/models"
 )
 
-func (s *Service) GetBySku(ctx context.Context, sku uint64, txId *uint32) (*models.Product, error) {
-	product, err := s.products.GetBySku(ctx, sku, txId)
+type GetProductUseCase struct {
+	products ReadProductRepository
+}
+
+func NewGetProductUseCase(products ReadProductRepository) *GetProductUseCase {
+	return &GetProductUseCase{products: products}
+}
+
+func (uc *GetProductUseCase) GetBySku(ctx context.Context, sku uint64, txId *uint32) (*models.Product, error) {
+	product, err := uc.products.GetBySku(ctx, sku, txId)
 	if err != nil {
 		return nil, fmt.Errorf("productRepository.GetBySku: %w", err)
 	}

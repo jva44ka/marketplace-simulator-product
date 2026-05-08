@@ -8,49 +8,29 @@ import (
 	"github.com/jva44ka/marketplace-simulator-product/internal/models"
 )
 
-type Service struct {
-	transactor Transactor
-	products   ReadProductRepository
-}
-
-func NewService(
-	transactor Transactor,
-	products ReadProductRepository,
-) *Service {
-	return &Service{
-		transactor: transactor,
-		products:   products,
-	}
-}
-
-type UpdateCount struct {
-	Sku   uint64
-	Delta uint32
-}
-
 func validateProductsExist(
 	ctx context.Context,
 	products []UpdateCount,
 	repo ReadProductRepository,
 ) (map[uint64]*models.Product, error) {
 	skus := make([]uint64, 0, len(products))
-	for _, product := range products {
-		skus = append(skus, product.Sku)
+	for _, p := range products {
+		skus = append(skus, p.Sku)
 	}
 
 	existingProducts, err := repo.GetBySkus(ctx, skus)
 	if err != nil {
-		return nil, fmt.Errorf("ProductService.validateProductsExist: %w", err)
+		return nil, fmt.Errorf("validateProductsExist: %w", err)
 	}
 
 	existingProductsMap := make(map[uint64]*models.Product, len(existingProducts))
-	for _, existingProduct := range existingProducts {
-		existingProductsMap[existingProduct.Sku] = existingProduct
+	for _, p := range existingProducts {
+		existingProductsMap[p.Sku] = p
 	}
 
-	for _, product := range products {
-		if _, ok := existingProductsMap[product.Sku]; !ok {
-			return nil, errors.NewProductNotFoundError(product.Sku)
+	for _, p := range products {
+		if _, ok := existingProductsMap[p.Sku]; !ok {
+			return nil, errors.NewProductNotFoundError(p.Sku)
 		}
 	}
 
