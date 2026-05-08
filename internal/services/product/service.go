@@ -6,15 +6,21 @@ import (
 
 	"github.com/jva44ka/marketplace-simulator-product/internal/errors"
 	"github.com/jva44ka/marketplace-simulator-product/internal/models"
-	"github.com/jva44ka/marketplace-simulator-product/internal/services"
 )
 
 type Service struct {
-	db services.DBManager
+	transactor Transactor
+	products   ReadProductRepository
 }
 
-func NewService(db services.DBManager) *Service {
-	return &Service{db: db}
+func NewService(
+	transactor Transactor,
+	products ReadProductRepository,
+) *Service {
+	return &Service{
+		transactor: transactor,
+		products:   products,
+	}
 }
 
 type UpdateCount struct {
@@ -25,7 +31,8 @@ type UpdateCount struct {
 func validateProductsExist(
 	ctx context.Context,
 	products []UpdateCount,
-	repo services.ProductRepository) (map[uint64]*models.Product, error) {
+	repo ReadProductRepository,
+) (map[uint64]*models.Product, error) {
 	skus := make([]uint64, 0, len(products))
 	for _, product := range products {
 		skus = append(skus, product.Sku)
@@ -48,4 +55,12 @@ func validateProductsExist(
 	}
 
 	return existingProductsMap, nil
+}
+
+func getProductMapSnapshot(productMap map[uint64]*models.Product) map[uint64]models.Product {
+	snapshot := make(map[uint64]models.Product, len(productMap))
+	for sku, p := range productMap {
+		snapshot[sku] = *p
+	}
+	return snapshot
 }

@@ -2,23 +2,30 @@ package reservation
 
 import (
 	"github.com/jva44ka/marketplace-simulator-product/internal/models"
-	"github.com/jva44ka/marketplace-simulator-product/internal/services"
 )
 
 type Service struct {
-	db services.DBManager
+	transactor      Transactor
+	productRepo     ReadProductRepository
+	reservationRepo ReadReservationRepository
 }
 
-func NewService(db services.DBManager) *Service {
-	return &Service{db: db}
+func NewService(
+	transactor Transactor,
+	products ReadProductRepository,
+	reservations ReadReservationRepository,
+) *Service {
+	return &Service{
+		transactor:      transactor,
+		productRepo:     products,
+		reservationRepo: reservations,
+	}
 }
 
 func getProductMapSnapshot(productMap map[uint64]*models.Product) map[uint64]models.Product {
 	snapshot := make(map[uint64]models.Product, len(productMap))
-
-	for sku, productMapItem := range productMap {
-		snapshot[sku] = *productMapItem
+	for sku, p := range productMap {
+		snapshot[sku] = *p
 	}
-
 	return snapshot
 }

@@ -4,19 +4,22 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/jva44ka/marketplace-simulator-product/internal/models"
-	"github.com/jva44ka/marketplace-simulator-product/internal/services"
 )
 
+type productDbRepository interface {
+	GetBySku(ctx context.Context, sku uint64, txId *uint32) (*models.Product, error)
+	GetBySkus(ctx context.Context, skus []uint64) ([]*models.Product, error)
+}
+
 type CachedProductRepository struct {
-	db      services.ProductRepository
+	db      productDbRepository
 	cache   *ProductCache        // nil when cache is disabled
 	metrics CacheMetricsReporter // nil when metrics are disabled
 }
 
 func NewCachedProductRepository(
-	db services.ProductRepository,
+	db productDbRepository,
 	productCache *ProductCache,
 	metrics CacheMetricsReporter,
 ) *CachedProductRepository {
@@ -94,8 +97,4 @@ func (r *CachedProductRepository) GetBySkus(ctx context.Context, skus []uint64) 
 	}
 
 	return result, nil
-}
-
-func (r *CachedProductRepository) WithTx(tx pgx.Tx) services.ProductTxRepository {
-	return r.db.WithTx(tx)
 }

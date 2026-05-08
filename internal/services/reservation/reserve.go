@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/jva44ka/marketplace-simulator-product/internal/errors"
 	"github.com/jva44ka/marketplace-simulator-product/internal/models"
 	"github.com/jva44ka/marketplace-simulator-product/internal/services/outbox"
@@ -21,7 +20,7 @@ func (s *Service) Reserve(ctx context.Context, reserveItems []ReserveItem) (map[
 		skus = append(skus, reserveItem.Sku)
 	}
 
-	products, err := s.db.ProductsRepo().GetBySkus(ctx, skus)
+	products, err := s.productRepo.GetBySkus(ctx, skus)
 	if err != nil {
 		return nil, fmt.Errorf("ReservationService.Reserve: %w", err)
 	}
@@ -35,12 +34,10 @@ func (s *Service) Reserve(ctx context.Context, reserveItems []ReserveItem) (map[
 	recordBuilder := outbox.NewProductEventRecordBuilder(oldState)
 
 	for _, reserveItem := range reserveItems {
-		//Проверяем наличие продукта
 		if _, ok := productsMap[reserveItem.Sku]; !ok {
 			return nil, errors.NewProductNotFoundError(reserveItem.Sku)
 		}
 
-		//Проверяем достаточно ли продукта
 		product := productsMap[reserveItem.Sku]
 		available := int64(product.Count) - int64(product.ReservedCount)
 		if available < int64(reserveItem.Delta) {
@@ -51,7 +48,6 @@ func (s *Service) Reserve(ctx context.Context, reserveItems []ReserveItem) (map[
 			return nil, errors.NewInsufficientProductError(reserveItem.Sku, have, reserveItem.Delta)
 		}
 
-		//Резервируем
 		product.ReservedCount += reserveItem.Delta
 	}
 
@@ -63,17 +59,19 @@ func (s *Service) Reserve(ctx context.Context, reserveItems []ReserveItem) (map[
 
 	reservationIds := make(map[uint64]int64, len(reserveItems))
 
-	err = s.db.InTransaction(ctx, func(tx pgx.Tx) error {
-		productsTxRepo := s.db.ProductsRepo().WithTx(tx)
-		reservationsTxRepo := s.db.ReservationsRepo().WithTx(tx)
-
-		if err = productsTxRepo.Update(ctx, products); err != nil {
+	err = s.transactor.InTransaction(ctx, func(
+		txProducts TxProductRepository,
+		txReservations TxReservationRepository,
+		txProductEvents TxProductEventsOutboxRepository,
+		txCacheUpdates TxCacheUpdateOutboxRepository,
+	) error {
+		if err = txProducts.Update(ctx, products); err != nil {
 			return fmt.Errorf("Reserve: %w", err)
 		}
 
 		//TODO: сделать батчевую вставку
 		for _, item := range reserveItems {
-			reservation, err := reservationsTxRepo.Insert(ctx, item.Sku, item.Delta)
+			reservation, err := txReservations.Insert(ctx, item.Sku, item.Delta)
 			if err != nil {
 				return fmt.Errorf("Reserve: %w", err)
 			}
@@ -82,21 +80,21 @@ func (s *Service) Reserve(ctx context.Context, reserveItems []ReserveItem) (map[
 
 		//TODO: сделать батчевую вставку
 		for _, outboxRecord := range outboxRecords {
-			if err = s.db.ProductEventsOutboxRepo().WithTx(tx).Create(ctx, outboxRecord); err != nil {
+			if err = txProductEvents.Create(ctx, outboxRecord); err != nil {
 				return fmt.Errorf("Reserve: save outbox_record: %w", err)
 			}
 		}
 
 		//TODO: сделать батчевую вставку
-		cacheOutbox := s.db.CacheUpdateOutboxRepo().WithTx(tx)
 		for _, item := range reserveItems {
-			if err = cacheOutbox.Create(ctx, item.Sku); err != nil {
+			if err = txCacheUpdates.Create(ctx, item.Sku); err != nil {
 				return fmt.Errorf("Reserve: save cache_update_outbox: %w", err)
 			}
 		}
 
 		return nil
 	})
+
 	if err != nil {
 		return nil, fmt.Errorf("ReservationService.Reserve: %w", err)
 	}
