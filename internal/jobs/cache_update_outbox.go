@@ -11,7 +11,7 @@ import (
 )
 
 type CacheUpdateProductRepo interface {
-	GetBySku(ctx context.Context, sku uint64, txId *uint32) (*models.Product, error)
+	Execute(ctx context.Context, sku uint64, txId *uint32) (*models.Product, error)
 }
 
 type CacheWriter interface {
@@ -160,9 +160,9 @@ func (j *CacheUpdateOutboxJob) processBatch(ctx context.Context, records []model
 	failedRecordReasons := make(map[uuid.UUID]string)
 
 	for _, rec := range records {
-		product, err := j.productRepo.GetBySku(ctx, rec.Sku, nil)
+		product, err := j.productRepo.Execute(ctx, rec.Sku, nil)
 		if err != nil {
-			slog.ErrorContext(ctx, "CacheUpdateOutboxJob: GetBySku failed",
+			slog.ErrorContext(ctx, "CacheUpdateOutboxJob: Execute failed",
 				"sku", rec.Sku, "record_id", rec.RecordId, "err", err)
 			failedRecordReasons[rec.RecordId] = err.Error()
 			continue

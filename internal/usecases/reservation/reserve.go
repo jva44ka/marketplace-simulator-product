@@ -27,7 +27,7 @@ func NewReserveUseCase(
 	}
 }
 
-func (uc *ReserveUseCase) Reserve(ctx context.Context, items []ReserveItem) (map[uint64]int64, error) {
+func (uc *ReserveUseCase) Execute(ctx context.Context, items []ReserveItem) (map[uint64]int64, error) {
 	skus := make([]uint64, 0, len(items))
 	for _, item := range items {
 		skus = append(skus, item.Sku)
@@ -35,7 +35,7 @@ func (uc *ReserveUseCase) Reserve(ctx context.Context, items []ReserveItem) (map
 
 	products, err := uc.productRepo.GetBySkus(ctx, skus)
 	if err != nil {
-		return nil, fmt.Errorf("ReserveUseCase.Reserve: %w", err)
+		return nil, fmt.Errorf("ReserveUseCase.Execute: %w", err)
 	}
 
 	productsMap := make(map[uint64]*models.Product, len(products))
@@ -65,7 +65,7 @@ func (uc *ReserveUseCase) Reserve(ctx context.Context, items []ReserveItem) (map
 	newState := getProductMapSnapshot(productsMap)
 	outboxRecords, err := recordBuilder.BuildRecords(ctx, newState)
 	if err != nil {
-		return nil, fmt.Errorf("ReserveUseCase.Reserve: %w", err)
+		return nil, fmt.Errorf("ReserveUseCase.Execute: %w", err)
 	}
 
 	reservationIds := make(map[uint64]int64, len(items))
@@ -77,29 +77,29 @@ func (uc *ReserveUseCase) Reserve(ctx context.Context, items []ReserveItem) (map
 		txCacheUpdates TxCacheUpdateOutboxRepository,
 	) error {
 		if err = txProducts.Update(ctx, products); err != nil {
-			return fmt.Errorf("Reserve: %w", err)
+			return fmt.Errorf("Execute: %w", err)
 		}
 		for _, item := range items {
 			reservation, err := txReservations.Insert(ctx, item.Sku, item.Delta)
 			if err != nil {
-				return fmt.Errorf("Reserve: %w", err)
+				return fmt.Errorf("Execute: %w", err)
 			}
 			reservationIds[item.Sku] = reservation.Id
 		}
 		for _, rec := range outboxRecords {
 			if err = txProductEvents.Create(ctx, rec); err != nil {
-				return fmt.Errorf("Reserve: save outbox_record: %w", err)
+				return fmt.Errorf("Execute: save outbox_record: %w", err)
 			}
 		}
 		for _, item := range items {
 			if err = txCacheUpdates.Create(ctx, item.Sku); err != nil {
-				return fmt.Errorf("Reserve: save cache_update_outbox: %w", err)
+				return fmt.Errorf("Execute: save cache_update_outbox: %w", err)
 			}
 		}
 		return nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("ReserveUseCase.Reserve: %w", err)
+		return nil, fmt.Errorf("ReserveUseCase.Execute: %w", err)
 	}
 
 	return reservationIds, nil

@@ -16,8 +16,8 @@ type ConfirmUseCase struct {
 }
 
 func NewConfirmUseCase(
-	transactor   Transactor,
-	products     ReadProductRepository,
+	transactor Transactor,
+	products ReadProductRepository,
 	reservations ReadReservationRepository,
 ) *ConfirmUseCase {
 	return &ConfirmUseCase{
@@ -27,10 +27,10 @@ func NewConfirmUseCase(
 	}
 }
 
-func (uc *ConfirmUseCase) Confirm(ctx context.Context, ids []int64) error {
+func (uc *ConfirmUseCase) Execute(ctx context.Context, ids []int64) error {
 	reservations, err := uc.reservationRepo.GetByIds(ctx, ids)
 	if err != nil {
-		return fmt.Errorf("ConfirmUseCase.Confirm: %w", err)
+		return fmt.Errorf("ConfirmUseCase.Execute: %w", err)
 	}
 	if len(reservations) == 0 {
 		return nil
@@ -44,7 +44,7 @@ func (uc *ConfirmUseCase) Confirm(ctx context.Context, ids []int64) error {
 	skus := slices.Collect(maps.Keys(reservationSumsBySku))
 	products, err := uc.productRepo.GetBySkus(ctx, skus)
 	if err != nil {
-		return fmt.Errorf("ConfirmUseCase.Confirm: %w", err)
+		return fmt.Errorf("ConfirmUseCase.Execute: %w", err)
 	}
 
 	productMap := make(map[uint64]*models.Product, len(products))
@@ -59,20 +59,20 @@ func (uc *ConfirmUseCase) Confirm(ctx context.Context, ids []int64) error {
 	}
 
 	return uc.transactor.InTransaction(ctx, func(
-		txProducts     TxProductRepository,
+		txProducts TxProductRepository,
 		txReservations TxReservationRepository,
-		_              TxProductEventsOutboxRepository,
+		_ TxProductEventsOutboxRepository,
 		txCacheUpdates TxCacheUpdateOutboxRepository,
 	) error {
 		if err = txProducts.Update(ctx, slices.Collect(maps.Values(productMap))); err != nil {
-			return fmt.Errorf("Confirm: %w", err)
+			return fmt.Errorf("Execute: %w", err)
 		}
 		if err = txReservations.DeleteByIds(ctx, ids); err != nil {
-			return fmt.Errorf("Confirm: %w", err)
+			return fmt.Errorf("Execute: %w", err)
 		}
 		for sku := range reservationSumsBySku {
 			if err = txCacheUpdates.Create(ctx, sku); err != nil {
-				return fmt.Errorf("Confirm: save cache_update_outbox: %w", err)
+				return fmt.Errorf("Execute: save cache_update_outbox: %w", err)
 			}
 		}
 		return nil

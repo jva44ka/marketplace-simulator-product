@@ -44,7 +44,7 @@ func (s *GrpcService) GetProduct(ctx context.Context, request *pb.GetProductRequ
 		return nil, status.Errorf(codes.InvalidArgument, "sku must be more than zero")
 	}
 
-	p, err := s.getProduct.GetBySku(ctx, request.Sku, request.TransactionId)
+	p, err := s.getProduct.Execute(ctx, request.Sku, request.TransactionId)
 	if err != nil {
 		return nil, fmt.Errorf("GrpcService.GetProduct: %w", err)
 	}
@@ -75,7 +75,7 @@ func (s *GrpcService) IncreaseProductCount(
 		})
 	}
 
-	if err := s.increaseCount.IncreaseCount(ctx, products); err != nil {
+	if err := s.increaseCount.Execute(ctx, products); err != nil {
 		return nil, fmt.Errorf("GrpcService.IncreaseProductCount: %w", err)
 	}
 
@@ -105,7 +105,7 @@ func (s *GrpcService) ReserveProduct(
 		})
 	}
 
-	reservationIds, err := s.reserve.Reserve(ctx, items)
+	reservationIds, err := s.reserve.Execute(ctx, items)
 	if err != nil {
 		return nil, fmt.Errorf("GrpcService.ReserveProduct: %w", err)
 	}
@@ -128,7 +128,7 @@ func (s *GrpcService) ReleaseReservation(
 		return nil, status.Errorf(codes.InvalidArgument, "reservation_ids must not be empty")
 	}
 
-	if err := s.release.Release(ctx, request.ReservationIds); err != nil {
+	if err := s.release.Execute(ctx, request.ReservationIds); err != nil {
 		return nil, fmt.Errorf("GrpcService.ReleaseReservation: %w", err)
 	}
 
@@ -142,7 +142,7 @@ func (s *GrpcService) ConfirmReservation(
 		return nil, status.Errorf(codes.InvalidArgument, "reservation_ids must not be empty")
 	}
 
-	if err := s.confirm.Confirm(ctx, request.ReservationIds); err != nil {
+	if err := s.confirm.Execute(ctx, request.ReservationIds); err != nil {
 		return nil, fmt.Errorf("GrpcService.ConfirmReservation: %w", err)
 	}
 
