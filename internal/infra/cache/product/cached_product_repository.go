@@ -7,20 +7,19 @@ import (
 	"github.com/jva44ka/marketplace-simulator-product/internal/models"
 )
 
-// dbReader is the minimal interface this decorator needs from the underlying DB repo.
-type dbReader interface {
+type productDbRepository interface {
 	GetBySku(ctx context.Context, sku uint64, txId *uint32) (*models.Product, error)
 	GetBySkus(ctx context.Context, skus []uint64) ([]*models.Product, error)
 }
 
 type CachedProductRepository struct {
-	db      dbReader
+	db      productDbRepository
 	cache   *ProductCache        // nil when cache is disabled
 	metrics CacheMetricsReporter // nil when metrics are disabled
 }
 
 func NewCachedProductRepository(
-	db dbReader,
+	db productDbRepository,
 	productCache *ProductCache,
 	metrics CacheMetricsReporter,
 ) *CachedProductRepository {
