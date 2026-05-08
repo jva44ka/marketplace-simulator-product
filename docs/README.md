@@ -23,7 +23,18 @@ internal/
   app/               — gRPC-сервер, HTTP-сервер (grpc-gateway), middleware
   models/            — доменные модели (Product, Reservation)
   errors/            — доменные ошибки
-  services/          — бизнес-логика (product, reservation)
+  usecases/
+    product/         — юзкейсы товаров
+      get_product.go       — получение товара по SKU
+      increase_count.go    — пополнение остатков
+      transactor.go        — интерфейсы
+    reservation/     — юзкейсы резервирований
+      reserve.go           — создание резервирования
+      release.go           — снятие резервирования
+      confirm.go           — подтверждение покупки
+      transactor.go        — интерфейсы
+  services/
+    outbox/          — построение outbox-событий изменения товаров
   jobs/
     product_events_outbox  — публикация событий товаров в Kafka
     cache_update_outbox    — инвалидация/обновление Redis после изменений товара
