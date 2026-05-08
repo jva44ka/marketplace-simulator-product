@@ -6,13 +6,12 @@ import (
 	"maps"
 	"slices"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/jva44ka/marketplace-simulator-product/internal/models"
 	"github.com/jva44ka/marketplace-simulator-product/internal/services/outbox"
 )
 
 func (s *Service) Release(ctx context.Context, ids []int64) error {
-	reservations, err := s.reservations.GetByIds(ctx, ids)
+	reservations, err := s.reservationRepo.GetByIds(ctx, ids)
 	if err != nil {
 		return fmt.Errorf("ReservationService.Release: %w", err)
 	}
@@ -27,7 +26,7 @@ func (s *Service) Release(ctx context.Context, ids []int64) error {
 	}
 
 	skus := slices.Collect(maps.Keys(reservationSumsBySku))
-	products, err := s.products.GetBySkus(ctx, skus)
+	products, err := s.productRepo.GetBySkus(ctx, skus)
 	if err != nil {
 		return fmt.Errorf("ReservationService.Release: %w", err)
 	}
@@ -50,25 +49,30 @@ func (s *Service) Release(ctx context.Context, ids []int64) error {
 		return fmt.Errorf("ReservationService.Release: %w", err)
 	}
 
-	return s.transactor.InTransaction(ctx, func(tx pgx.Tx) error {
-		if err = s.products.WithTx(tx).Update(ctx, slices.Collect(maps.Values(productMap))); err != nil {
+	return s.transactor.InTransaction(ctx, func(
+		txProducts TxProductRepository,
+		txReservations TxReservationRepository,
+		txProductEvents TxProductEventsOutboxRepository,
+		txCacheUpdates TxCacheUpdateOutboxRepository,
+	) error {
+		if err = txProducts.Update(ctx, slices.Collect(maps.Values(productMap))); err != nil {
 			return fmt.Errorf("Release: %w", err)
 		}
 
-		if err = s.reservations.WithTx(tx).DeleteByIds(ctx, ids); err != nil {
+		if err = txReservations.DeleteByIds(ctx, ids); err != nil {
 			return fmt.Errorf("Release: %w", err)
 		}
 
 		//TODO: сделать батчевую вставку
 		for _, outboxRecord := range outboxRecords {
-			if err = s.productOutbox.WithTx(tx).Create(ctx, outboxRecord); err != nil {
+			if err = txProductEvents.Create(ctx, outboxRecord); err != nil {
 				return fmt.Errorf("Release: save outbox_record: %w", err)
 			}
 		}
 
 		//TODO: сделать батчевую вставку
 		for sku := range reservationSumsBySku {
-			if err = s.cacheOutbox.WithTx(tx).Create(ctx, sku); err != nil {
+			if err = txCacheUpdates.Create(ctx, sku); err != nil {
 				return fmt.Errorf("Release: save cache_update_outbox: %w", err)
 			}
 		}

@@ -9,7 +9,6 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jva44ka/marketplace-simulator-product/internal/models"
-	"github.com/jva44ka/marketplace-simulator-product/internal/services"
 )
 
 type ProductEventsOutboxRepository struct {
@@ -94,7 +93,7 @@ WHERE record_id = $1;`
 	return nil
 }
 
-func (r *ProductEventsOutboxRepository) WithTx(tx pgx.Tx) services.ProductEventsOutboxTxRepository {
+func (r *ProductEventsOutboxRepository) WithTx(tx pgx.Tx) *ProductEventsOutboxTxRepository {
 	return &ProductEventsOutboxTxRepository{tx: tx}
 }
 

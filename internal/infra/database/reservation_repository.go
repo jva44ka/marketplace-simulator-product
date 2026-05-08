@@ -8,7 +8,6 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jva44ka/marketplace-simulator-product/internal/models"
-	"github.com/jva44ka/marketplace-simulator-product/internal/services"
 )
 
 type ReservationRepositoryMetrics interface {
@@ -88,7 +87,7 @@ WHERE created_at < $1`
 	return result, nil
 }
 
-func (r *ReservationPgxRepository) WithTx(tx pgx.Tx) services.ReservationTxRepository {
+func (r *ReservationPgxRepository) WithTx(tx pgx.Tx) *ReservationPgxTxRepository {
 	return &ReservationPgxTxRepository{tx: tx, metrics: r.metrics}
 }
 

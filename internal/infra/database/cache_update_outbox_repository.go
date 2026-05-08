@@ -9,7 +9,6 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jva44ka/marketplace-simulator-product/internal/models"
-	"github.com/jva44ka/marketplace-simulator-product/internal/services"
 )
 
 type CacheUpdateOutboxRepository struct {
@@ -95,7 +94,7 @@ WHERE record_id = $1;`
 	return nil
 }
 
-func (r *CacheUpdateOutboxRepository) WithTx(tx pgx.Tx) services.CacheUpdateOutboxTxRepository {
+func (r *CacheUpdateOutboxRepository) WithTx(tx pgx.Tx) *CacheUpdateOutboxTxRepository {
 	return &CacheUpdateOutboxTxRepository{tx: tx}
 }
 

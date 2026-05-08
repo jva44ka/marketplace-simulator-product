@@ -8,7 +8,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/jva44ka/marketplace-simulator-product/internal/infra/config"
 	"github.com/jva44ka/marketplace-simulator-product/internal/models"
-	"github.com/jva44ka/marketplace-simulator-product/internal/services"
 )
 
 type CacheUpdateProductRepo interface {
@@ -25,8 +24,17 @@ type CacheUpdateOutboxJobMetrics interface {
 	ReportRecordAge(age time.Duration)
 }
 
+type CacheUpdateOutboxRepo interface {
+	GetPending(ctx context.Context, limit int) ([]models.CacheUpdateOutboxRecord, error)
+	CountPending(ctx context.Context) (int64, error)
+	CountDeadLetters(ctx context.Context) (int64, error)
+	DeleteBatch(ctx context.Context, ids []uuid.UUID) error
+	IncrementRetry(ctx context.Context, id uuid.UUID) error
+	MarkDeadLetter(ctx context.Context, id uuid.UUID, reason string) error
+}
+
 type CacheUpdateOutboxJob struct {
-	outboxRepo  services.CacheUpdateOutboxRepository
+	outboxRepo  CacheUpdateOutboxRepo
 	productRepo CacheUpdateProductRepo
 	cache       CacheWriter // nil when cache is disabled
 	metrics     CacheUpdateOutboxJobMetrics
@@ -34,7 +42,7 @@ type CacheUpdateOutboxJob struct {
 }
 
 func NewCacheUpdateOutboxJob(
-	outboxRepo services.CacheUpdateOutboxRepository,
+	outboxRepo CacheUpdateOutboxRepo,
 	productRepo CacheUpdateProductRepo,
 	cache CacheWriter,
 	metrics CacheUpdateOutboxJobMetrics,

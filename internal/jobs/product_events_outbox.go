@@ -10,7 +10,6 @@ import (
 	kafkaContracts "github.com/jva44ka/marketplace-simulator-product/api_internal/kafka"
 	"github.com/jva44ka/marketplace-simulator-product/internal/infra/config"
 	"github.com/jva44ka/marketplace-simulator-product/internal/models"
-	"github.com/jva44ka/marketplace-simulator-product/internal/services"
 )
 
 type OutboxKafkaProducer interface {
@@ -24,15 +23,23 @@ type OutboxJobMetrics interface {
 	ReportRecordAge(age time.Duration)
 }
 
+type ProductEventsOutboxRepo interface {
+	GetPending(ctx context.Context, limit int) ([]models.ProductEventOutboxRecord, error)
+	GetCount(ctx context.Context, isDeadLetter bool) (int64, error)
+	DeleteBatch(ctx context.Context, recordIds []uuid.UUID) error
+	IncrementRetry(ctx context.Context, recordId uuid.UUID) error
+	MarkDeadLetter(ctx context.Context, recordId uuid.UUID, reason string) error
+}
+
 type ProductEventsOutboxJob struct {
-	outboxRepo services.ProductEventsOutboxRepository
+	outboxRepo ProductEventsOutboxRepo
 	producer   OutboxKafkaProducer
 	metrics    OutboxJobMetrics
 	cfgStore   *config.ConfigStore
 }
 
 func NewProductEventsOutboxJob(
-	outboxRepo services.ProductEventsOutboxRepository,
+	outboxRepo ProductEventsOutboxRepo,
 	producer OutboxKafkaProducer,
 	metrics OutboxJobMetrics,
 	cfgStore *config.ConfigStore,

@@ -4,19 +4,23 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/jva44ka/marketplace-simulator-product/internal/models"
-	"github.com/jva44ka/marketplace-simulator-product/internal/services"
 )
 
+// dbReader is the minimal interface this decorator needs from the underlying DB repo.
+type dbReader interface {
+	GetBySku(ctx context.Context, sku uint64, txId *uint32) (*models.Product, error)
+	GetBySkus(ctx context.Context, skus []uint64) ([]*models.Product, error)
+}
+
 type CachedProductRepository struct {
-	db      services.ProductRepository
+	db      dbReader
 	cache   *ProductCache        // nil when cache is disabled
 	metrics CacheMetricsReporter // nil when metrics are disabled
 }
 
 func NewCachedProductRepository(
-	db services.ProductRepository,
+	db dbReader,
 	productCache *ProductCache,
 	metrics CacheMetricsReporter,
 ) *CachedProductRepository {
@@ -94,10 +98,4 @@ func (r *CachedProductRepository) GetBySkus(ctx context.Context, skus []uint64) 
 	}
 
 	return result, nil
-}
-
-// WithTx delegates to the underlying DB repository so transaction-bound writes
-// (e.g. Update) go through the same pgx.Tx.
-func (r *CachedProductRepository) WithTx(tx pgx.Tx) services.ProductTxRepository {
-	return r.db.WithTx(tx)
 }

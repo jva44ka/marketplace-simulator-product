@@ -118,11 +118,12 @@ func NewApp(ctx context.Context, cfg *config.Config) (*App, error) {
 	}
 
 	dbMetrics := metrics.NewDbMetrics()
-	transactor := database.NewTransactor(pool)
 	rawProductRepo := database.NewProductPgxRepository(pool, dbMetrics)
 	reservationRepo := database.NewReservationPgxRepository(pool, dbMetrics)
 	productEventsOutboxRepo := database.NewProductEventsOutboxRepository(pool)
 	cacheUpdateOutboxRepo := database.NewCacheUpdateOutboxRepository(pool)
+	productTransactor := database.NewProductServiceTransactor(pool, rawProductRepo, productEventsOutboxRepo, cacheUpdateOutboxRepo)
+	reservationTransactor := database.NewReservationServiceTransactor(pool, rawProductRepo, reservationRepo, productEventsOutboxRepo, cacheUpdateOutboxRepo)
 
 	producer := kafka.NewProductEventsProducer(currentCfg.Kafka.Brokers, currentCfg.Kafka.ProductEventsTopic, kafkaWriteTimeout)
 
@@ -146,8 +147,8 @@ func NewApp(ctx context.Context, cfg *config.Config) (*App, error) {
 	// into the service or transport layers.
 	cachedProductRepo := cacheProduct.NewCachedProductRepository(rawProductRepo, productCache, cacheMetrics)
 
-	productService := product.NewService(transactor, cachedProductRepo, productEventsOutboxRepo, cacheUpdateOutboxRepo)
-	reservationService := reservation.NewService(transactor, cachedProductRepo, reservationRepo, productEventsOutboxRepo, cacheUpdateOutboxRepo)
+	productService := product.NewService(productTransactor, cachedProductRepo)
+	reservationService := reservation.NewService(reservationTransactor, cachedProductRepo, reservationRepo)
 
 	reservationExpiryJob := jobs.NewReservationExpiryJob(
 		reservationRepo,

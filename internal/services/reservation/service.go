@@ -2,30 +2,23 @@ package reservation
 
 import (
 	"github.com/jva44ka/marketplace-simulator-product/internal/models"
-	"github.com/jva44ka/marketplace-simulator-product/internal/services"
 )
 
 type Service struct {
-	transactor    services.Transactor
-	products      services.ProductRepository
-	reservations  services.ReservationRepository
-	productOutbox services.ProductEventsOutboxRepository
-	cacheOutbox   services.CacheUpdateOutboxRepository
+	transactor      Transactor
+	productRepo     ReadProductRepository
+	reservationRepo ReadReservationRepository
 }
 
 func NewService(
-	transactor services.Transactor,
-	products services.ProductRepository,
-	reservations services.ReservationRepository,
-	productOutbox services.ProductEventsOutboxRepository,
-	cacheOutbox services.CacheUpdateOutboxRepository,
+	transactor Transactor,
+	products ReadProductRepository,
+	reservations ReadReservationRepository,
 ) *Service {
 	return &Service{
-		transactor:    transactor,
-		products:      products,
-		reservations:  reservations,
-		productOutbox: productOutbox,
-		cacheOutbox:   cacheOutbox,
+		transactor:      transactor,
+		productRepo:     products,
+		reservationRepo: reservations,
 	}
 }
 

@@ -9,7 +9,6 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	appErrors "github.com/jva44ka/marketplace-simulator-product/internal/errors"
 	"github.com/jva44ka/marketplace-simulator-product/internal/models"
-	"github.com/jva44ka/marketplace-simulator-product/internal/services"
 )
 
 type ProductRepositoryMetrics interface {
@@ -35,8 +34,6 @@ type productRow struct {
 	xmin          uint32
 }
 
-// GetBySku returns nil (not an error) when the product doesn't exist.
-// txId is used only by the cache decorator layer and is ignored here.
 func (r *ProductPgxRepository) GetBySku(ctx context.Context, sku uint64, _ *uint32) (*models.Product, error) {
 	products, err := r.GetBySkus(ctx, []uint64{sku})
 	if err != nil {
@@ -83,7 +80,7 @@ WHERE sku = ANY($1);`
 	return products, nil
 }
 
-func (r *ProductPgxRepository) WithTx(tx pgx.Tx) services.ProductTxRepository {
+func (r *ProductPgxRepository) WithTx(tx pgx.Tx) *ProductPgxTxRepository {
 	return &ProductPgxTxRepository{tx: tx, metrics: r.metrics}
 }
 

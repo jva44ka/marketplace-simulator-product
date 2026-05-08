@@ -6,12 +6,11 @@ import (
 	"maps"
 	"slices"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/jva44ka/marketplace-simulator-product/internal/models"
 )
 
 func (s *Service) Confirm(ctx context.Context, ids []int64) error {
-	reservations, err := s.reservations.GetByIds(ctx, ids)
+	reservations, err := s.reservationRepo.GetByIds(ctx, ids)
 	if err != nil {
 		return fmt.Errorf("ReservationService.Confirm: %w", err)
 	}
@@ -26,7 +25,7 @@ func (s *Service) Confirm(ctx context.Context, ids []int64) error {
 	}
 
 	skus := slices.Collect(maps.Keys(reservationSumsBySku))
-	products, err := s.products.GetBySkus(ctx, skus)
+	products, err := s.productRepo.GetBySkus(ctx, skus)
 	if err != nil {
 		return fmt.Errorf("ReservationService.Confirm: %w", err)
 	}
@@ -42,18 +41,23 @@ func (s *Service) Confirm(ctx context.Context, ids []int64) error {
 		productMap[product.Sku].ReservedCount -= delta
 	}
 
-	return s.transactor.InTransaction(ctx, func(tx pgx.Tx) error {
-		if err = s.products.WithTx(tx).Update(ctx, slices.Collect(maps.Values(productMap))); err != nil {
+	return s.transactor.InTransaction(ctx, func(
+		txProductRepo TxProductRepository,
+		txReservationRepo TxReservationRepository,
+		_ TxProductEventsOutboxRepository, // Confirm doesn't emit product events
+		txCacheUpdateOutboxRepo TxCacheUpdateOutboxRepository,
+	) error {
+		if err = txProductRepo.Update(ctx, slices.Collect(maps.Values(productMap))); err != nil {
 			return fmt.Errorf("Confirm: %w", err)
 		}
 
-		if err = s.reservations.WithTx(tx).DeleteByIds(ctx, ids); err != nil {
+		if err = txReservationRepo.DeleteByIds(ctx, ids); err != nil {
 			return fmt.Errorf("Confirm: %w", err)
 		}
 
 		//TODO: сделать батчевую вставку
 		for sku := range reservationSumsBySku {
-			if err = s.cacheOutbox.WithTx(tx).Create(ctx, sku); err != nil {
+			if err = txCacheUpdateOutboxRepo.Create(ctx, sku); err != nil {
 				return fmt.Errorf("Confirm: save cache_update_outbox: %w", err)
 			}
 		}
