@@ -1,27 +1,28 @@
-package database
+package transactor
 
 import (
 	"context"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jva44ka/marketplace-simulator-product/internal/infra/database/repository"
 	svcReservation "github.com/jva44ka/marketplace-simulator-product/internal/services/reservation"
 )
 
 type ReservationServiceTransactor struct {
 	pool                *pgxpool.Pool
-	products            *ProductPgxRepository
-	reservations        *ReservationPgxRepository
-	productEventsOutbox *ProductEventsOutboxRepository
-	cacheUpdateOutbox   *CacheUpdateOutboxRepository
+	products            *repository.ProductPgxRepository
+	reservations        *repository.ReservationPgxRepository
+	productEventsOutbox *repository.ProductEventsOutboxRepository
+	cacheUpdateOutbox   *repository.CacheUpdateOutboxRepository
 }
 
 func NewReservationServiceTransactor(
 	pool *pgxpool.Pool,
-	products *ProductPgxRepository,
-	reservations *ReservationPgxRepository,
-	productEventsOutbox *ProductEventsOutboxRepository,
-	cacheUpdateOutbox *CacheUpdateOutboxRepository,
+	products *repository.ProductPgxRepository,
+	reservations *repository.ReservationPgxRepository,
+	productEventsOutbox *repository.ProductEventsOutboxRepository,
+	cacheUpdateOutbox *repository.CacheUpdateOutboxRepository,
 ) *ReservationServiceTransactor {
 	return &ReservationServiceTransactor{
 		pool:                pool,

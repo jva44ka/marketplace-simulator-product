@@ -15,7 +15,8 @@ import (
 	"github.com/jva44ka/marketplace-simulator-product/internal/app/middleware"
 	cacheProduct "github.com/jva44ka/marketplace-simulator-product/internal/infra/cache/product"
 	"github.com/jva44ka/marketplace-simulator-product/internal/infra/config"
-	"github.com/jva44ka/marketplace-simulator-product/internal/infra/database"
+	"github.com/jva44ka/marketplace-simulator-product/internal/infra/database/repository"
+	"github.com/jva44ka/marketplace-simulator-product/internal/infra/database/transactor"
 	etcdPkg "github.com/jva44ka/marketplace-simulator-product/internal/infra/etcd"
 	"github.com/jva44ka/marketplace-simulator-product/internal/infra/kafka"
 	"github.com/jva44ka/marketplace-simulator-product/internal/infra/metrics"
@@ -118,12 +119,12 @@ func NewApp(ctx context.Context, cfg *config.Config) (*App, error) {
 	}
 
 	dbMetrics := metrics.NewDbMetrics()
-	rawProductRepo := database.NewProductPgxRepository(pool, dbMetrics)
-	reservationRepo := database.NewReservationPgxRepository(pool, dbMetrics)
-	productEventsOutboxRepo := database.NewProductEventsOutboxRepository(pool)
-	cacheUpdateOutboxRepo := database.NewCacheUpdateOutboxRepository(pool)
-	productTransactor := database.NewProductServiceTransactor(pool, rawProductRepo, productEventsOutboxRepo, cacheUpdateOutboxRepo)
-	reservationTransactor := database.NewReservationServiceTransactor(pool, rawProductRepo, reservationRepo, productEventsOutboxRepo, cacheUpdateOutboxRepo)
+	rawProductRepo := repository.NewProductPgxRepository(pool, dbMetrics)
+	reservationRepo := repository.NewReservationPgxRepository(pool, dbMetrics)
+	productEventsOutboxRepo := repository.NewProductEventsOutboxRepository(pool)
+	cacheUpdateOutboxRepo := repository.NewCacheUpdateOutboxRepository(pool)
+	productTransactor := transactor.NewProductServiceTransactor(pool, rawProductRepo, productEventsOutboxRepo, cacheUpdateOutboxRepo)
+	reservationTransactor := transactor.NewReservationServiceTransactor(pool, rawProductRepo, reservationRepo, productEventsOutboxRepo, cacheUpdateOutboxRepo)
 
 	producer := kafka.NewProductEventsProducer(currentCfg.Kafka.Brokers, currentCfg.Kafka.ProductEventsTopic, kafkaWriteTimeout)
 
