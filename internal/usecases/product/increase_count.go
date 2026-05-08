@@ -27,7 +27,7 @@ func NewIncreaseCountUseCase(
 func (uc *IncreaseCountUseCase) Execute(ctx context.Context, products []UpdateCount) error {
 	existingProductsMap, err := validateProductsExist(ctx, products, uc.products)
 	if err != nil {
-		return fmt.Errorf("GetBySku: %w", err)
+		return fmt.Errorf("Execute: %w", err)
 	}
 
 	oldState := getProductMapSnapshot(existingProductsMap)
@@ -40,7 +40,7 @@ func (uc *IncreaseCountUseCase) Execute(ctx context.Context, products []UpdateCo
 	newState := getProductMapSnapshot(existingProductsMap)
 	outboxRecords, err := recordBuilder.BuildRecords(ctx, newState)
 	if err != nil {
-		return fmt.Errorf("GetBySku: %w", err)
+		return fmt.Errorf("Execute: %w", err)
 	}
 
 	return uc.transactor.InTransaction(ctx, func(
@@ -49,16 +49,16 @@ func (uc *IncreaseCountUseCase) Execute(ctx context.Context, products []UpdateCo
 		txCacheUpdates TxCacheUpdateOutboxRepository,
 	) error {
 		if err = txProducts.Update(ctx, slices.Collect(maps.Values(existingProductsMap))); err != nil {
-			return fmt.Errorf("GetBySku: %w", err)
+			return fmt.Errorf("Execute: %w", err)
 		}
 		for _, rec := range outboxRecords {
 			if err = txProductEvents.Create(ctx, rec); err != nil {
-				return fmt.Errorf("GetBySku: save outbox_record: %w", err)
+				return fmt.Errorf("Execute: save outbox_record: %w", err)
 			}
 		}
 		for _, p := range products {
 			if err = txCacheUpdates.Create(ctx, p.Sku); err != nil {
-				return fmt.Errorf("GetBySku: save cache_update_outbox: %w", err)
+				return fmt.Errorf("Execute: save cache_update_outbox: %w", err)
 			}
 		}
 		return nil
