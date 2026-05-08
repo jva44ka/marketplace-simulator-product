@@ -123,8 +123,8 @@ func NewApp(ctx context.Context, cfg *config.Config) (*App, error) {
 	reservationRepo := repository.NewReservationPgxRepository(pool, dbMetrics)
 	productEventsOutboxRepo := repository.NewProductEventsOutboxRepository(pool)
 	cacheUpdateOutboxRepo := repository.NewCacheUpdateOutboxRepository(pool)
-	productTransactor := transactor.NewProductServiceTransactor(pool, rawProductRepo, productEventsOutboxRepo, cacheUpdateOutboxRepo)
-	reservationTransactor := transactor.NewReservationServiceTransactor(pool, rawProductRepo, reservationRepo, productEventsOutboxRepo, cacheUpdateOutboxRepo)
+	productTransactor := transactor.NewProductServiceTransactor(pool, dbMetrics)
+	reservationTransactor := transactor.NewReservationServiceTransactor(pool, dbMetrics, dbMetrics)
 
 	producer := kafka.NewProductEventsProducer(currentCfg.Kafka.Brokers, currentCfg.Kafka.ProductEventsTopic, kafkaWriteTimeout)
 

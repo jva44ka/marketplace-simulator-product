@@ -87,13 +87,13 @@ WHERE created_at < $1`
 	return result, nil
 }
 
-func (r *ReservationPgxRepository) WithTx(tx pgx.Tx) *ReservationPgxTxRepository {
-	return &ReservationPgxTxRepository{tx: tx, metrics: r.metrics}
-}
-
 type ReservationPgxTxRepository struct {
 	tx      pgx.Tx
 	metrics ReservationRepositoryMetrics
+}
+
+func NewReservationPgxTxRepository(tx pgx.Tx, metrics ReservationRepositoryMetrics) *ReservationPgxTxRepository {
+	return &ReservationPgxTxRepository{tx: tx, metrics: metrics}
 }
 
 func (r *ReservationPgxTxRepository) Insert(ctx context.Context, sku uint64, count uint32) (models.Reservation, error) {

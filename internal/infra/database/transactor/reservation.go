@@ -10,44 +10,38 @@ import (
 )
 
 type ReservationServiceTransactor struct {
-	pool                *pgxpool.Pool
-	products            *repository.ProductPgxRepository
-	reservations        *repository.ReservationPgxRepository
-	productEventsOutbox *repository.ProductEventsOutboxRepository
-	cacheUpdateOutbox   *repository.CacheUpdateOutboxRepository
+	pool               *pgxpool.Pool
+	productMetrics     repository.ProductRepositoryMetrics
+	reservationMetrics repository.ReservationRepositoryMetrics
 }
 
 func NewReservationServiceTransactor(
 	pool *pgxpool.Pool,
-	products *repository.ProductPgxRepository,
-	reservations *repository.ReservationPgxRepository,
-	productEventsOutbox *repository.ProductEventsOutboxRepository,
-	cacheUpdateOutbox *repository.CacheUpdateOutboxRepository,
+	productMetrics repository.ProductRepositoryMetrics,
+	reservationMetrics repository.ReservationRepositoryMetrics,
 ) *ReservationServiceTransactor {
 	return &ReservationServiceTransactor{
-		pool:                pool,
-		products:            products,
-		reservations:        reservations,
-		productEventsOutbox: productEventsOutbox,
-		cacheUpdateOutbox:   cacheUpdateOutbox,
+		pool:               pool,
+		productMetrics:     productMetrics,
+		reservationMetrics: reservationMetrics,
 	}
 }
 
 func (t *ReservationServiceTransactor) InTransaction(
 	ctx context.Context,
 	fn func(
-		products svcReservation.TxProductRepository,
-		reservations svcReservation.TxReservationRepository,
+		products      svcReservation.TxProductRepository,
+		reservations  svcReservation.TxReservationRepository,
 		productEvents svcReservation.TxProductEventsOutboxRepository,
-		cacheUpdates svcReservation.TxCacheUpdateOutboxRepository,
+		cacheUpdates  svcReservation.TxCacheUpdateOutboxRepository,
 	) error,
 ) error {
 	return pgx.BeginTxFunc(ctx, t.pool, pgx.TxOptions{}, func(tx pgx.Tx) error {
 		return fn(
-			t.products.WithTx(tx),
-			t.reservations.WithTx(tx),
-			t.productEventsOutbox.WithTx(tx),
-			t.cacheUpdateOutbox.WithTx(tx),
+			repository.NewProductPgxTxRepository(tx, t.productMetrics),
+			repository.NewReservationPgxTxRepository(tx, t.reservationMetrics),
+			repository.NewProductEventsOutboxTxRepository(tx),
+			repository.NewCacheUpdateOutboxTxRepository(tx),
 		)
 	})
 }

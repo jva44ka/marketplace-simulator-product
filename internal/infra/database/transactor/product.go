@@ -10,39 +10,33 @@ import (
 )
 
 type ProductServiceTransactor struct {
-	pool                *pgxpool.Pool
-	products            *repository.ProductPgxRepository
-	productEventsOutbox *repository.ProductEventsOutboxRepository
-	cacheUpdateOutbox   *repository.CacheUpdateOutboxRepository
+	pool           *pgxpool.Pool
+	productMetrics repository.ProductRepositoryMetrics
 }
 
 func NewProductServiceTransactor(
 	pool *pgxpool.Pool,
-	products *repository.ProductPgxRepository,
-	productEventsOutbox *repository.ProductEventsOutboxRepository,
-	cacheUpdateOutbox *repository.CacheUpdateOutboxRepository,
+	productMetrics repository.ProductRepositoryMetrics,
 ) *ProductServiceTransactor {
 	return &ProductServiceTransactor{
-		pool:                pool,
-		products:            products,
-		productEventsOutbox: productEventsOutbox,
-		cacheUpdateOutbox:   cacheUpdateOutbox,
+		pool:           pool,
+		productMetrics: productMetrics,
 	}
 }
 
 func (t *ProductServiceTransactor) InTransaction(
 	ctx context.Context,
 	fn func(
-	products serviceProduct.TxProductRepository,
-	productEvents serviceProduct.TxProductEventsOutboxRepository,
-	cacheUpdates serviceProduct.TxCacheUpdateOutboxRepository,
-) error,
+		products      serviceProduct.TxProductRepository,
+		productEvents serviceProduct.TxProductEventsOutboxRepository,
+		cacheUpdates  serviceProduct.TxCacheUpdateOutboxRepository,
+	) error,
 ) error {
 	return pgx.BeginTxFunc(ctx, t.pool, pgx.TxOptions{}, func(tx pgx.Tx) error {
 		return fn(
-			t.products.WithTx(tx),
-			t.productEventsOutbox.WithTx(tx),
-			t.cacheUpdateOutbox.WithTx(tx),
+			repository.NewProductPgxTxRepository(tx, t.productMetrics),
+			repository.NewProductEventsOutboxTxRepository(tx),
+			repository.NewCacheUpdateOutboxTxRepository(tx),
 		)
 	})
 }

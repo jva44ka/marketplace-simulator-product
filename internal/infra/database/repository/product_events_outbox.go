@@ -93,12 +93,12 @@ WHERE record_id = $1;`
 	return nil
 }
 
-func (r *ProductEventsOutboxRepository) WithTx(tx pgx.Tx) *ProductEventsOutboxTxRepository {
-	return &ProductEventsOutboxTxRepository{tx: tx}
-}
-
 type ProductEventsOutboxTxRepository struct {
 	tx pgx.Tx
+}
+
+func NewProductEventsOutboxTxRepository(tx pgx.Tx) *ProductEventsOutboxTxRepository {
+	return &ProductEventsOutboxTxRepository{tx: tx}
 }
 
 func (r *ProductEventsOutboxTxRepository) Create(ctx context.Context, record models.ProductEventOutboxRecordNew) error {

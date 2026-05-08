@@ -80,13 +80,13 @@ WHERE sku = ANY($1);`
 	return products, nil
 }
 
-func (r *ProductPgxRepository) WithTx(tx pgx.Tx) *ProductPgxTxRepository {
-	return &ProductPgxTxRepository{tx: tx, metrics: r.metrics}
-}
-
 type ProductPgxTxRepository struct {
 	tx      pgx.Tx
 	metrics ProductRepositoryMetrics
+}
+
+func NewProductPgxTxRepository(tx pgx.Tx, metrics ProductRepositoryMetrics) *ProductPgxTxRepository {
+	return &ProductPgxTxRepository{tx: tx, metrics: metrics}
 }
 
 func (r *ProductPgxTxRepository) Update(ctx context.Context, products []*models.Product) error {

@@ -94,12 +94,12 @@ WHERE record_id = $1;`
 	return nil
 }
 
-func (r *CacheUpdateOutboxRepository) WithTx(tx pgx.Tx) *CacheUpdateOutboxTxRepository {
-	return &CacheUpdateOutboxTxRepository{tx: tx}
-}
-
 type CacheUpdateOutboxTxRepository struct {
 	tx pgx.Tx
+}
+
+func NewCacheUpdateOutboxTxRepository(tx pgx.Tx) *CacheUpdateOutboxTxRepository {
+	return &CacheUpdateOutboxTxRepository{tx: tx}
 }
 
 func (r *CacheUpdateOutboxTxRepository) Create(ctx context.Context, sku uint64) error {
