@@ -6,7 +6,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jva44ka/marketplace-simulator-product/internal/infra/database/repository"
-	serviceProduct "github.com/jva44ka/marketplace-simulator-product/internal/services/product"
+	ucProduct "github.com/jva44ka/marketplace-simulator-product/internal/usecases/product"
 )
 
 type ProductServiceTransactor struct {
@@ -27,9 +27,9 @@ func NewProductServiceTransactor(
 func (t *ProductServiceTransactor) InTransaction(
 	ctx context.Context,
 	fn func(
-		products      serviceProduct.TxProductRepository,
-		productEvents serviceProduct.TxProductEventsOutboxRepository,
-		cacheUpdates  serviceProduct.TxCacheUpdateOutboxRepository,
+		products ucProduct.TxProductRepository,
+		productEvents ucProduct.TxProductEventsOutboxRepository,
+		cacheUpdates ucProduct.TxCacheUpdateOutboxRepository,
 	) error,
 ) error {
 	return pgx.BeginTxFunc(ctx, t.pool, pgx.TxOptions{}, func(tx pgx.Tx) error {

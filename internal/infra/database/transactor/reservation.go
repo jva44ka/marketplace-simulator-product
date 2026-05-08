@@ -6,7 +6,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jva44ka/marketplace-simulator-product/internal/infra/database/repository"
-	svcReservation "github.com/jva44ka/marketplace-simulator-product/internal/services/reservation"
+	ucReservation "github.com/jva44ka/marketplace-simulator-product/internal/usecases/reservation"
 )
 
 type ReservationServiceTransactor struct {
@@ -30,10 +30,10 @@ func NewReservationServiceTransactor(
 func (t *ReservationServiceTransactor) InTransaction(
 	ctx context.Context,
 	fn func(
-		products      svcReservation.TxProductRepository,
-		reservations  svcReservation.TxReservationRepository,
-		productEvents svcReservation.TxProductEventsOutboxRepository,
-		cacheUpdates  svcReservation.TxCacheUpdateOutboxRepository,
+		products ucReservation.TxProductRepository,
+		reservations ucReservation.TxReservationRepository,
+		productEvents ucReservation.TxProductEventsOutboxRepository,
+		cacheUpdates ucReservation.TxCacheUpdateOutboxRepository,
 	) error,
 ) error {
 	return pgx.BeginTxFunc(ctx, t.pool, pgx.TxOptions{}, func(tx pgx.Tx) error {

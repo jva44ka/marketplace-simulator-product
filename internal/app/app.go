@@ -22,8 +22,8 @@ import (
 	"github.com/jva44ka/marketplace-simulator-product/internal/infra/metrics"
 	"github.com/jva44ka/marketplace-simulator-product/internal/infra/tracing"
 	"github.com/jva44ka/marketplace-simulator-product/internal/jobs"
-	"github.com/jva44ka/marketplace-simulator-product/internal/services/product"
-	"github.com/jva44ka/marketplace-simulator-product/internal/services/reservation"
+	ucProduct "github.com/jva44ka/marketplace-simulator-product/internal/usecases/product"
+	ucReservation "github.com/jva44ka/marketplace-simulator-product/internal/usecases/reservation"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/redis/go-redis/v9"
 	clientv3 "go.etcd.io/etcd/client/v3"
@@ -144,16 +144,19 @@ func NewApp(ctx context.Context, cfg *config.Config) (*App, error) {
 	}
 
 	// Wrap the plain product repository with the cache decorator so that all
-	// read paths (GetBySku) benefit from Redis without any cache logic leaking
+	// read paths (Execute) benefit from Redis without any cache logic leaking
 	// into the service or transport layers.
 	cachedProductRepo := cacheProduct.NewCachedProductRepository(rawProductRepo, productCache, cacheMetrics)
 
-	productService := product.NewService(productTransactor, cachedProductRepo)
-	reservationService := reservation.NewService(reservationTransactor, cachedProductRepo, reservationRepo)
+	getProductUC := ucProduct.NewGetProductUseCase(cachedProductRepo)
+	increaseCountUC := ucProduct.NewIncreaseCountUseCase(productTransactor, cachedProductRepo)
+	reserveUC := ucReservation.NewReserveUseCase(reservationTransactor, cachedProductRepo, reservationRepo)
+	releaseUC := ucReservation.NewReleaseUseCase(reservationTransactor, cachedProductRepo, reservationRepo)
+	confirmUC := ucReservation.NewConfirmUseCase(reservationTransactor, cachedProductRepo, reservationRepo)
 
 	reservationExpiryJob := jobs.NewReservationExpiryJob(
 		reservationRepo,
-		reservationService,
+		releaseUC,
 		cfgStore,
 	)
 
@@ -220,7 +223,7 @@ func NewApp(ctx context.Context, cfg *config.Config) (*App, error) {
 		grpc.StatsHandler(otelgrpc.NewServerHandler()),
 		grpc.ChainUnaryInterceptor(interceptors...),
 	)
-	grpcService := NewGrpcService(productService, reservationService)
+	grpcService := NewGrpcService(getProductUC, increaseCountUC, reserveUC, releaseUC, confirmUC)
 
 	pb.RegisterProductsServer(grpcServer, grpcService)
 

@@ -162,7 +162,7 @@ func (j *CacheUpdateOutboxJob) processBatch(ctx context.Context, records []model
 	for _, rec := range records {
 		product, err := j.productRepo.GetBySku(ctx, rec.Sku, nil)
 		if err != nil {
-			slog.ErrorContext(ctx, "CacheUpdateOutboxJob: GetBySku failed",
+			slog.ErrorContext(ctx, "CacheUpdateOutboxJob: Execute failed",
 				"sku", rec.Sku, "record_id", rec.RecordId, "err", err)
 			failedRecordReasons[rec.RecordId] = err.Error()
 			continue

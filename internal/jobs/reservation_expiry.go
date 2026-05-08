@@ -15,7 +15,7 @@ type ReservationRepository interface {
 }
 
 type ReservationService interface {
-	Release(ctx context.Context, ids []int64) error
+	Execute(ctx context.Context, ids []int64) error
 }
 
 type ReservationExpiryJob struct {
@@ -86,5 +86,5 @@ func (j *ReservationExpiryJob) tick(ctx context.Context, ttl time.Duration) erro
 		ids[i] = r.Id
 	}
 
-	return j.reservationService.Release(ctx, ids)
+	return j.reservationService.Execute(ctx, ids)
 }
