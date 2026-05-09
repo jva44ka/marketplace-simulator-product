@@ -2,7 +2,7 @@
 
 [🇷🇺 Русский](README.md) · 🇬🇧 English
 
-Product management microservice in the "Marketplace Simulator" educational project.
+Product management microservice in the "Marketplace Simulator" pet project.
 
 ## Stack
 
